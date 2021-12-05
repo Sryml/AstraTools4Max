@@ -34,7 +34,7 @@ utility AstraTools "Astra Tools" (
 	--
 	
 	-- About
-	rollout AboutScript "About AstraTools v0.2.0" (
+	rollout AboutScript "About AstraTools v0.3.0" (
 		Bitmap logo Filename:"assets/capsule_231x87.jpg"
 		Label ccLab1 "(C) Dec 2021 Sryml"
 		Label ccLab2 "GNU General Public License v3.0"
@@ -162,77 +162,174 @@ utility AstraTools "Astra Tools" (
 	)
 
 
-	-- 动画拼接
-	rollout AnimationSplice "Animation Splice" (
+	-- 动画切割/拼接
+	rollout AnimationSplice "Animation Cut/Splice" (
 		button select_anm "Select AnmMax File" width:145 tooltip:"Double click in the list to delete the item."
-		listbox ui_paths "AnmMax Files:" items:#( ) selection:0 height:4
-		label ui_transition_v "Transition: 8" align:#left across:2
-		checkbox follow_angle "Follow Angle" align:#right enabled:false
-		slider ui_transition "" orient:#horizontal type:#integer range:[0, 50, 8] -- 8
+		group "Animation Range" (
+			listbox ui_paths "" items:#( ) selection:0 height:4
+			label ui_anmrange1_v "start time: 0" align:#left across:2
+			label ui_anmrange2_v "end time: 100" align:#left
+			slider ui_anmrange1 "" orient:#horizontal type:#integer range:[0, 99, 0] align:#left across:2
+			slider ui_anmrange2 "" orient:#horizontal type:#integer range:[1, 100, 100] align:#right
+		)
+		group "Settings" (
+			label ui_transition_v "Transition: 8" align:#left across:2
+			checkbox follow_angle "Follow Angle" align:#right enabled:false
+			slider ui_transition "" orient:#horizontal type:#integer range:[0, 50, 8] -- 8
+		)
 		label blank ""
 		button START "START" width:45 height:20
 
 		local anm_paths = #( )
 
-		fn init = (
-			if maxFileName != "" do (
+		fn ui_paths_selected x init:false = (
+			local start_, start, end_, end
+			local isload = false
+			if filenameFromPath x[1] != maxFileName do (
+				isload = true
+				loadMaxFile x[1]
+			)
+			if isload or init then (
+				start_ = animationRange.start
+				end_ = animationRange.end
+				x[3] = animationRange
+			) else (
+				start_ = x[3].start
+				end_ = x[3].end
+			)
+			if x[2] != undefined then (
+				start = x[2].start
+				end = x[2].end
+				sliderTime = start
+				if isload do animationRange = x[2]
+			) else (
+				start = start_
+				end = end_
+			)
+
+			ui_anmrange1.range = [start_, end_ - 1, 0]
+			ui_anmrange1.value = start
+			ui_anmrange2.range = [start_ + 1, end_, 0]
+			ui_anmrange2.value = end
+			ui_anmrange1_v.text = "start time: " + ui_anmrange1.value as string
+			ui_anmrange2_v.text = "end time: " + ui_anmrange2.value as string
+		)
+		fn init from_select:false = (
+			if maxFileName != "" and anm_paths.count == 0 do (
 				ui_paths.items = #( maxFileName )
-				anm_paths = #( maxFilePath + maxFileName )
+				anm_paths = #( #( maxFilePath + maxFileName ) )
+				ui_paths.selection = 1
+				if from_select do loadMaxFile anm_paths[1][1]
+				ui_paths_selected anm_paths[1] init:true
 			)
 		)
 
 		on select_anm pressed do (
+			init from_select:true
 			local obj
-			f = getOpenFileName types:"Blade Anm (*.max)|*.max|All files (*.*)|*.*|"
+			local f = getOpenFileName types:"Blade Anm (*.max)|*.max|All files (*.*)|*.*|"
 			if f != undefined do (
-				tmp = ui_paths.items
+				local tmp = ui_paths.items
 				append tmp ( filenameFromPath f )
 				ui_paths.items = tmp
-				append anm_paths f
+				ui_paths.selection = ui_paths.items.count
+				append anm_paths #( f )
+				ui_paths_selected anm_paths[ui_paths.selection]
 			)
 		)
+		on ui_paths selected i do (
+			ui_paths_selected anm_paths[i]
+		)
 		on ui_paths doubleClicked i do (
-			tmp = ui_paths.items
+			local tmp = ui_paths.items
 			deleteItem tmp i
 			ui_paths.items = tmp
 			deleteItem anm_paths i
+			if anm_paths.count > 0 do (
+				ui_paths.selection = anm_paths.count
+				ui_paths_selected anm_paths[anm_paths.count]
+			)
+		)
+		on ui_anmrange1 changed val do (
+			ui_anmrange1_v.text = "start time: " + val as string
+			if val >= ui_anmrange2.value do (
+				ui_anmrange2.value = val + 1
+				ui_anmrange2_v.text = "end time: " + ui_anmrange2.value as string
+			)
+			if anm_paths.count > 0 do (
+				anm_paths[ui_paths.selection][2] = Interval ui_anmrange1.value ui_anmrange2.value
+				animationRange = anm_paths[ui_paths.selection][2]
+			)
+			sliderTime = val
+		)
+		on ui_anmrange2 changed val do (
+			ui_anmrange2_v.text = "end time: " + val as string
+			if val <= ui_anmrange1.value do (
+				ui_anmrange1.value = val - 1
+				ui_anmrange1_v.text = "start time: " + ui_anmrange1.value as string
+			)
+			if anm_paths.count > 0 do (
+				anm_paths[ui_paths.selection][2] = Interval ui_anmrange1.value ui_anmrange2.value
+				animationRange = anm_paths[ui_paths.selection][2]
+			)
+			sliderTime = val
 		)
 		on ui_transition changed val do (
 			ui_transition_v.text = "Transition: " + val as string
 		)
 		on START pressed do (
 			local nAnims = anm_paths.count
-			if nAnims > 1 do (
-				local anm_range = #( )
+			if nAnims > 0 do (
 				-- 从第二个起获取剩余动画的范围
 				for i = 2 to nAnims do (
-					loadMAXFile anm_paths[i]
-					append anm_range animationRange
+					local path = anm_paths[i]
+					if path[2] == undefined do (
+						loadMAXFile path[1]
+						path[2] = animationRange
+					)
 				)
 
-				loadMAXFile anm_paths[1]
+				local path = anm_paths[1]
+				loadMAXFile path[1]
 				-- 判断组
 				if classof objects[1] != Dummy do (
-					group objects name:( "Blade_AnimRoot_" + readChars ( maxFileName as stringStream ) 4 + "MergeAnm" )
+					group objects name:( "Blade_AnimRoot_" + readChars ( maxFileName as stringStream ) 4 + "g_MergeAnm" )
 				)
 				selectionSets["anm1"] = ( execute ( "$" + objects[2].name + "...*" ) )
 				local anm1_set = selectionSets["anm1"]
 				local nNodes = anm1_set.count
+
+				-- 切割主动画
+				local start, end, start_, end_
+				start_ = animationRange.start
+				end_ = animationRange.end
+				if path[2] != undefined then (
+					start = path[2].start
+					end = path[2].end
+				) else (
+					start = start_
+					end = end_
+				)
+				deleteTime selectionSets["anm1"] end ( getTimeRange selectionSets["anm1"][1].pos.controller ).end #incRight
+				deleteTime selectionSets["anm1"] 0 start #incLeft
+				animationRange = Interval 0 ( end - start )
+				
+				hide selectionSets["anm1"]
 				local show_process = false
 				-- 开始循环处理
 				for i = 2 to nAnims do (
 					local path = anm_paths[i]
 
 					-- 判断骨架是否匹配
-					mergeMAXFile path #select #skipDups
+					mergeMAXFile path[1] #select #skipDups
 					if selection.count > 0 do (
-						format "Node Mismatch: %\n" ( filenameFromPath path )
+						format "Node Mismatch: %\n" ( filenameFromPath path[1] )
 						delete $
 						continue
 					)
-					mergeMAXFile path #select #mergeDups
+					mergeMAXFile path[1] #select #mergeDups
 					if selection.count != nNodes do (
-						format "Node Mismatch: %\n" ( filenameFromPath path )
+						format "Node Mismatch: %\n" ( filenameFromPath path[1] )
 						delete $
 						continue
 					)
@@ -242,23 +339,32 @@ utility AstraTools "Astra Tools" (
 					clearSelection()
 
 					local start_frame = animationRange.end + ui_transition.value
-					local anm_len = anm_range[i - 1].end + 1f
+					local anm_len = path[2].end - path[2].start + 1f
 					-- 增加动画范围
-					animationRange = interval animationRange.start ( animationRange.end + anm_len + ui_transition.value )
+					animationRange = interval animationRange.start ( start_frame + anm_len )
 
 					-- 纠正次动画位置及方向
 					animate on (
 						at time start_frame (
 							local pos = anm1_set[1].pos
 							local ang = anm1_set[1].transform.rotationPart as eulerangles
+							for i in execute ( "$" + anm1_set[1].parent.name + "...*_Foot" ) do (
+								if i.pos.y < pos.y do pos.y = i.pos.y
+							)
 						)
 					)
+					local end_tmp = animationRange.end
+					if path[2].start > animationRange.end do (
+						animationRange = interval animationRange.start path[2].start
+					)
+					sliderTime = path[2].start
 					if follow_angle.checked do (
 						local tmp = anm2_set[1].transform.rotationPart as eulerangles
 						tmp.z = ang.z
 						anm2_set[1].rotation = inverse ( tmp as quat )
 					)
 					anm2_set[1].pos = [pos.x, pos.y, anm2_set[1].pos.z]
+					animationRange = interval animationRange.start end_tmp
 					
 					if show_process do sliderTime = start_frame
 					max vpt left
@@ -268,7 +374,7 @@ utility AstraTools "Astra Tools" (
 					for i = 1 to anm_len do (
 						for n = 1 to nNodes do (
 							animate on (
-								at time ( i - 1 ) (
+								at time ( path[2].start + i - 1 ) (
 									local matrix = anm2_set[n].transform
 								)
 								at time ( start_frame + i ) (
@@ -300,11 +406,67 @@ utility AstraTools "Astra Tools" (
 					delete anm2_set
 					deleteItem selectionSets "anm2"
 				)
+				-- 清除多余关键帧
+				for n = 1 to nNodes do (
+					deleteKeys anm1_set[n].scale.controller
+					if n != 1 do (
+						deleteKeys anm1_set[n].pos.controller
+					)
+				)
 				-- 清理工作
+				unhide selectionSets["anm1"]
 				deleteItem selectionSets "anm1"
 				-- init()
 				-- ui_paths.items = anm_paths = #( )
 			)
+		)
+	)
+
+
+	-- 动画反转
+	rollout AnimationReverse "Animation Reverse" (
+		button ui_Reverse "Reverse" width:60 height:20
+
+		fn std_ui_Reverse = (
+			local Nodes = #( )
+			for obj in $* do (
+				if classof obj != Dummy do (
+					append Nodes obj
+				)
+			)
+			if Nodes.count == 0 do return false
+
+			local len = ( getTimeRange Nodes[1].pos.controller ).end + 1
+			moveKeys $* len
+
+			local pos = Nodes[1].pos
+			local end = len * 2 - 1
+			for i = 0 to len - 1 do (
+				for n = 1 to Nodes.count do (
+					animate on (
+						at time ( end - i ) (
+							local matrix = Nodes[n].transform
+						)
+						at time i (
+							if n != 1 do matrix.row4 = Nodes[n].transform.row4
+							Nodes[n].transform = matrix
+						)
+					)
+				)
+			)
+			Nodes[1].pos = pos
+			deleteTime Nodes ( len - 1 ) end #incRight
+			-- 清除多余关键帧
+			for n = 1 to Nodes.count do (
+				deleteKeys Nodes[n].scale.controller
+				if n != 1 do (
+					deleteKeys Nodes[n].pos.controller
+				)
+			)
+		)
+
+		on ui_Reverse pressed do (
+			std_ui_Reverse()
 		)
 	)
 
@@ -322,6 +484,7 @@ utility AstraTools "Astra Tools" (
 		addrollout TransformScale main_win rolledup:true
 		addrollout AnimationSplice main_win rolledup:true
 		AnimationSplice.init()
+		addrollout AnimationReverse main_win rolledup:true
 	)
 	on main_close pressed do (
 		std_main_close()

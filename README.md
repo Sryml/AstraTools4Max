@@ -26,6 +26,11 @@ Copy the contents of the 3DSMAX2.5 folder to `3DSMAX2.5\`
 
 ## Update
 
+### v0.3
+
+`[+]`Added function `Animation Reverse`  
+`[+]`Added function `Animation Cut`
+
 ### v0.2
 
 `[+]`Added function `Animation Splice`
