@@ -1,7 +1,7 @@
 -- AstraTools
 
 -- 3DStudio MAXScript Utility to modify the Blade of Darkness model.
--- 3DStudio Max 2.5 compatible
+-- 3DStudio Max 2.5 or higher compatible
 
 -- Copyright (C) Sep 2020  Sryml
 
@@ -30,18 +30,21 @@ utility AstraTools "Astra Tools" (
 	local main_win
 
 	--
-	fn BldObj_filt obj = classof obj == Dummy and findString obj.name "Blade_Object_" == 1
+	fn BldObj_filt obj = isKindOf obj Dummy and findString obj.name "Blade_Object_" == 1
+
+	local HAS_FOPEN = fopen != undefined
+	local HAS_DOUBLE = WriteFloatAsDouble != undefined
 	--
 	
 	-- About
-	rollout AboutScript "About AstraTools v0.3.0" (
-		Bitmap logo Filename:"assets/capsule_231x87.jpg"
+	rollout AboutScript "About AstraTools v0.5.9" (
+		Bitmap logo Filename:"assets/capsule_231x87.bmp"
 		Label ccLab1 "(C) Dec 2021 Sryml"
 		Label ccLab2 "GNU General Public License v3.0"
 	)
 
 	-- 变换人物大小
-	rollout TransformScale "Transform Scale" (
+	rollout TransformScale "Character Scale" (
 		button select_group "Select A Group" width:140 toolTip:"Group of Blade_Object_..." --height:20
 		
 		spinner spread "Scale:" range:[0.01, 1000, 1] type:#float scale:0.25 fieldwidth:50 align:#center offset:[0, 20]
@@ -60,7 +63,7 @@ utility AstraTools "Astra Tools" (
 		(
 			-- try
 			-- (
-			--     return classof obj.Name == string
+			--     return isKindOf obj.Name string
 			-- )
 			if findString ( obj as string ) "$" == undefined do
 			(
@@ -277,6 +280,10 @@ utility AstraTools "Astra Tools" (
 		on ui_transition changed val do (
 			ui_transition_v.text = "Transition: " + val as string
 		)
+		on ui_transition rightClick do (
+			ui_transition_v.text = "Transition: 8"
+			ui_transition.value = 8
+		)
 		on START pressed do (
 			local nAnims = anm_paths.count
 			if nAnims > 0 do (
@@ -292,7 +299,7 @@ utility AstraTools "Astra Tools" (
 				local path = anm_paths[1]
 				loadMAXFile path[1]
 				-- 判断组
-				if classof objects[1] != Dummy do (
+				if not isKindOf objects[1] Dummy do (
 					group objects name:( "Blade_AnimRoot_" + readChars ( maxFileName as stringStream ) 4 + "g_MergeAnm" )
 				)
 				selectionSets["anm1"] = ( execute ( "$" + objects[2].name + "...*" ) )
@@ -344,13 +351,11 @@ utility AstraTools "Astra Tools" (
 					animationRange = interval animationRange.start ( start_frame + anm_len )
 
 					-- 纠正次动画位置及方向
-					animate on (
-						at time start_frame (
-							local pos = anm1_set[1].pos
-							local ang = anm1_set[1].transform.rotationPart as eulerangles
-							for i in execute ( "$" + anm1_set[1].parent.name + "...*_Foot" ) do (
-								if i.pos.y < pos.y do pos.y = i.pos.y
-							)
+					at time start_frame (
+						local pos = anm1_set[1].pos
+						local ang = anm1_set[1].transform.rotationPart as eulerangles
+						for i in execute ( "$" + anm1_set[1].parent.name + "...*_Foot" ) do (
+							if i.pos.y < pos.y do pos.y = i.pos.y
 						)
 					)
 					local end_tmp = animationRange.end
@@ -373,10 +378,8 @@ utility AstraTools "Astra Tools" (
 					-- 复制关键帧
 					for i = 1 to anm_len do (
 						for n = 1 to nNodes do (
+							at time ( path[2].start + i - 1 ) local matrix = anm2_set[n].transform
 							animate on (
-								at time ( path[2].start + i - 1 ) (
-									local matrix = anm2_set[n].transform
-								)
 								at time ( start_frame + i ) (
 									-- local angle_axis = anm1_set[n].rotation as AngleAxis
 									-- angle_axis.angle *= -1
@@ -430,7 +433,7 @@ utility AstraTools "Astra Tools" (
 		fn std_ui_Reverse = (
 			local Nodes = #( )
 			for obj in $* do (
-				if classof obj != Dummy do (
+				if not isKindOf obj Dummy do (
 					append Nodes obj
 				)
 			)
@@ -443,10 +446,8 @@ utility AstraTools "Astra Tools" (
 			local end = len * 2 - 1
 			for i = 0 to len - 1 do (
 				for n = 1 to Nodes.count do (
+					at time ( end - i ) local matrix = Nodes[n].transform
 					animate on (
-						at time ( end - i ) (
-							local matrix = Nodes[n].transform
-						)
 						at time i (
 							if n != 1 do matrix.row4 = Nodes[n].transform.row4
 							Nodes[n].transform = matrix
@@ -471,6 +472,29 @@ utility AstraTools "Astra Tools" (
 	)
 
 
+	-- 导入 & 导出
+	rollout IMPEXP "Import & Export" (
+		button IMP_BOD "Import BOD" width:142 enabled:false
+		button EXP_BOD "Export BOD" width:142 enabled:HAS_DOUBLE
+		button EXP_BOD_AS "Export BOD As..." width:142 enabled:HAS_DOUBLE
+		
+		label blank1 ""
+		button IMP_BMV "Import BMV" width:142 enabled:false
+		button EXP_BMV "Export BMV" width:142 enabled:false
+		label ccLab1 ""
+		label ccLab2 ""
+		
+		on EXP_BOD pressed do (
+			filein "BladeExpBOD.ms"
+			execute "STD_EXP_BOD()"
+		)
+		on EXP_BOD_AS pressed do (
+			filein "BladeExpBOD.ms"
+			execute "STD_EXP_BOD custom:true"
+		)
+	)
+
+
 	-----------------------------
 	fn std_main_close = (
 		if main_win != undefined do closerolloutfloater main_win
@@ -485,6 +509,12 @@ utility AstraTools "Astra Tools" (
 		addrollout AnimationSplice main_win rolledup:true
 		AnimationSplice.init()
 		addrollout AnimationReverse main_win rolledup:true
+
+		addrollout IMPEXP main_win rolledup:( not HAS_DOUBLE )
+		if not HAS_DOUBLE do (
+			IMPEXP.ccLab1.text = "A higher version is required"
+			IMPEXP.ccLab2.text = "to use these features!"
+		)
 	)
 	on main_close pressed do (
 		std_main_close()
@@ -499,5 +529,5 @@ utility AstraTools "Astra Tools" (
 
 )
 
-
+openUtility AstraTools
 
