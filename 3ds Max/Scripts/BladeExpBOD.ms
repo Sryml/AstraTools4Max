@@ -38,7 +38,7 @@ fn Write_B_Fire_Fuego = (
 		)
 	)
 	local nObjs = objs.count
-	-- 没有火则写4个0
+	-- If not, write four 0
 	writeLong f nObjs
 	for i = 1 to nObjs do
 	(
@@ -49,12 +49,10 @@ fn Write_B_Fire_Fuego = (
 		writeLong f nVertexs
 		for i = 1 to nVertexs do (
 			v = in coordsys parent_.transform getVert o i
-			WriteFloatAsDouble f v.x
-			WriteFloatAsDouble f v.y
-			WriteFloatAsDouble f v.z
+			for x = 1 to 3 do WriteFloatAsDouble f v[x]
 			writeLong f 3
 		)
-		-- 父级索引
+		-- parent index
 		writeLong f ( ( findItem NODE_NAMES parent_.name ) - 1 )
 		writeLong f ( i - 1 )
 		deleteModifier o 1
@@ -71,17 +69,15 @@ fn Write_Omni = (
 		)
 	)
 	local nObjs = objs.count
-	-- 没有光则写4个0
+	-- If not, write four 0
 	writeLong f nObjs
 	for o in objs do (
 		local parent_ = o.parent
 		p = in coordsys parent_.transform o.pos
 		WriteFloat f 1.0
 		WriteFloat f 0.03125
-		WriteFloatAsDouble f p.x
-		WriteFloatAsDouble f p.y
-		WriteFloatAsDouble f p.z
-		-- 父级索引
+		for x = 1 to 3 do WriteFloatAsDouble f p[x]
+		-- parent index
 		writeLong f ( ( findItem NODE_NAMES parent_.name ) - 1 )
 	)
 )
@@ -90,7 +86,7 @@ fn Write_Blade_Anchors = (
 	local f = BOD_FILE
 	local objs = execute ( "$" + GROUP_NAME + "...Blade_Anchor_*" )
 	local nObjs = objs.count
-	-- 没有锚点则写4个0
+	-- If not, write four 0
 	writeLong f nObjs
 	for o in objs do (
 		local parent_ = o.parent
@@ -108,7 +104,7 @@ fn Write_Blade_Anchors = (
 			WriteFloatAsDouble f matrix[i][3]
 			WriteFloatAsDouble f ( i / 4 )
 		)
-		-- 父级索引
+		-- parent index
 		local idx = findItem NODE_NAMES parent_.name
 		if idx != 0 then idx -= 1
 		writeLong f idx
@@ -119,14 +115,13 @@ fn Write_Blade_Edges = (
 	local f = BOD_FILE
 	local objs = execute ( "$" + GROUP_NAME + "...Blade_Edge_*" )
 	local nObjs = objs.count
-	-- local crush = $Blade_Anchor_Crush != undefined
-	-- 没有边缘则写4个0
+	-- If not, write four 0
 	writeLong f nObjs
 
 	for o in objs do (
 		local parent_ = o.parent
 		addModifier o ( Edit_Mesh ())
-		-- XXX: 仅仅是相似的编译结果
+		-- XXX: Just similar compilation results
 		local p1 = in coordsys parent_.transform ( getvert o 5 + getvert o 6 ) / 2
 		local p2 = in coordsys parent_.transform ( getvert o 2 + getvert o 3 ) / 2
 
@@ -135,23 +130,14 @@ fn Write_Blade_Edges = (
 		local v2 = in coordsys parent_.transform getvert o 7 - p1
 
 		writeLong f 0
-		-- 父级索引
+		-- parent index
 		local idx = findItem NODE_NAMES parent_.name
 		if idx != 0 then idx -= 1
 		writeLong f idx
 
-		WriteFloatAsDouble f center.x
-		WriteFloatAsDouble f center.y
-		WriteFloatAsDouble f center.z
-
-		WriteFloatAsDouble f v1.x
-		WriteFloatAsDouble f v1.y
-		WriteFloatAsDouble f v1.z
-
-		WriteFloatAsDouble f v2.x
-		WriteFloatAsDouble f v2.y
-		WriteFloatAsDouble f v2.z
-
+		for i in #( center, v1, v2 ) do (
+			for x = 1 to 3 do WriteFloatAsDouble f i[x]
+		)
 		deleteModifier o 1
 	)
 )
@@ -160,7 +146,7 @@ fn Write_Blade_Spikes = (
 	local f = BOD_FILE
 	local objs = execute ( "$" + GROUP_NAME + "...Blade_Spike_*" )
 	local nObjs = objs.count
-	-- 没有尖刺则写4个0
+	-- If not, write four 0
 	writeLong f nObjs
 
 	for o in objs do (
@@ -171,19 +157,14 @@ fn Write_Blade_Spikes = (
 		local v1 = in coordsys parent_.transform getVert o 1 - v6
 
 		writeLong f 0.0
-		-- 父级索引
+		-- parent index
 		local idx = findItem NODE_NAMES parent_.name
 		if idx != 0 then idx -= 1
 		writeLong f idx
 
-		WriteFloatAsDouble f v6.x
-		WriteFloatAsDouble f v6.y
-		WriteFloatAsDouble f v6.z
-
-		WriteFloatAsDouble f v1.x
-		WriteFloatAsDouble f v1.y
-		WriteFloatAsDouble f v1.z
-
+		for i in #( v6, v1 ) do (
+			for x = 1 to 3 do WriteFloatAsDouble f i[x]
+		)
 		deleteModifier o 1
 	)
 )
@@ -192,40 +173,50 @@ fn Write_Blade_Trails = (
 	local f = BOD_FILE
 	local objs = execute ( "$" + GROUP_NAME + "...Blade_Trail_*" )
 	local nObjs = objs.count
-	-- 没有轨迹则写4个0
+	-- If not, write four 0
 	writeLong f nObjs
 
 	for o in objs do (
 		local parent_ = o.parent
+		addModifier o ( Edit_Mesh ())
 
-		local v1 = in coordsys parent_.transform getKnotPoint o 1 1
-		local v2 = in coordsys parent_.transform getKnotPoint o 1 2
+		-- local v1 = in coordsys parent_.transform getKnotPoint o 1 1
+		local v1 = in coordsys parent_.transform getvert o 1
+		local v2 = in coordsys parent_.transform getvert o 2 - v1
 
 		writeLong f 0.0
-		-- 父级索引
+		-- parent index
 		local idx = findItem NODE_NAMES parent_.name
 		if idx != 0 then idx -= 1
 		writeLong f idx
 
-		WriteFloatAsDouble f v1.x
-		WriteFloatAsDouble f v1.y
-		WriteFloatAsDouble f v1.z
-		WriteFloatAsDouble f ( v2.x - v1.x )
-		WriteFloatAsDouble f ( v2.y - v1.y )
-		WriteFloatAsDouble f ( v2.z - v1.z )
+		for i in #( v1, v2 ) do (
+			for x = 1 to 3 do WriteFloatAsDouble f i[x]
+		)
+		deleteModifier o 1
 	)
 )
 
--- 
--- rollout dlg_err "Error" (
--- 	label ccLab "The object to be exported must belong to the group: Blade_Object"
--- 	label blank ""
--- 	button ok_ "OK" width:150
-
--- 	on ok_ pressed do (
--- 		DestroyDialog dlg_err
--- 	)
--- )
+--
+fn compareFN v1 v2 valArray: = (
+	if valArray != unsupplied then (
+		local v1 = valArray[v1]
+		local v2 = valArray[v2]
+	)
+	if isKindOf v1 Array then (
+		local v1 = v1[1]
+		local v2 = v2[1]
+	)
+	if v1.x < v2.x then return -1
+	else if v1.x == v2.x then (
+		if v1.y < v2.y then return -1
+		else if v1.y == v2.y then (
+			if v1.z < v2.z then return -1
+			else if v1.z == v2.z then return 0
+		)
+	)
+	return 1
+)
 --
 
 fn STD_EXP_BOD custom:false = (
@@ -244,7 +235,7 @@ fn STD_EXP_BOD custom:false = (
 		if not queryBox ( SaveFileName + " already exists.\nDo you want to replace it?" ) title:"Export BOD File" beep:false then return false
 	)
 
-	-- 是否成组
+	-- check group
 	local OBJECT_GROUP = $Blade_Object_*[1]
 	GROUP_NAME = OBJECT_GROUP.name
 	if OBJECT_GROUP == undefined do (
@@ -252,9 +243,9 @@ fn STD_EXP_BOD custom:false = (
 		return false
 	)
 	local inter_name = substring GROUP_NAME 14 -1
-	-- 内部名称不应为空
+	-- Internal name should not be empty
 	if inter_name == "" do (
-		messageBox "The object to be exported must belong to the group: Blade_Object" beep:false
+		messageBox "Internal name should not be empty" beep:false
 		return false
 	)
 
@@ -271,7 +262,7 @@ fn STD_EXP_BOD custom:false = (
 	local mesh_ = #( )
 
 	for o in objs where (
-		findItem filter_w1 ( substring o.name 1 11 ) == 0 and findItem filter_w2 ( classof o ) == 0
+		isKindOf o Editable_mesh and findItem filter_w1 ( substring o.name 1 11 ) == 0
 	) do append mesh_ o
 	if mesh_.count > 1 then (
 		maxOps.cloneNodes mesh_ cloneType:#copy newNodes:&tmp
@@ -283,13 +274,13 @@ fn STD_EXP_BOD custom:false = (
 		mesh_.name = "BladeExpBOD_tmp"
 	) else (
 		if mesh_.count == 0 then (
-			print "Error: The master model cannot be recognized."
+			messageBox "Error: The master model cannot be recognized" beep:false
 			return false
 		)
 		mesh_ = mesh_[1]
 	)
 
-	OBJECT_TRANSFORM = OBJECT_GROUP.transform
+	local OBJECT_TRANSFORM = OBJECT_GROUP.transform
 	OBJECT_GROUP.transform = matrix3 1
 
 	local f = BOD_FILE = fopen SaveFileName "wb"
@@ -298,90 +289,136 @@ fn STD_EXP_BOD custom:false = (
 	fseek f -1 #seek_cur
 
 	local nVertexs = mesh_.numverts
+	local nSklVertexs = 0
 	local nFaces = mesh_.numfaces
-	writeLong f nVertexs
+	local Vertexs
 
-	local MAX_LENGTH = 0.01
+	local MAX_LENGTH = 0
 	local MESH_VERT_CENTER = [0, 0, 0]
+	local SKIN_FACE = #( )
 	if isPerson then (
-		local nodes = #( )
+		local NODE_VCENTER_MAXLENGTH = #( )
+		local NODE_VERTEX = #( )
+		local NODE_NUMVERTEX = #( )
+		local NODE_VERTEX_IDX
+		local SKIN_VERTEX = #( )
+		local SKL_COUNT
+
 		NODE_NAMES = #( )
-		NODE_VCENTER_AND_LENGTH = #( )
-		-- maxOps.cloneNodes SKELETONS cloneType:#copy newNodes:&tmp_mesh
-		-- hide tmp_mesh
+
+		local tmp = #( )
 		for o in SKELETONS where (
-			findItem filter_w1 ( substring o.name 1 11 ) == 0 and findItem filter_w2 ( classof o ) == 0
+			isKindOf o Editable_mesh and findItem filter_w1 ( substring o.name 1 11 ) == 0
 		) do (
-			append nodes o
+			append tmp o
 			append NODE_NAMES o.name
 		)
-		SKELETONS = nodes
+		SKELETONS = tmp
+		
 		SKL_COUNT = SKELETONS.count
 		for i = 1 to SKL_COUNT do (
 			o = SKELETONS[i]
 			local vert_center = [0, 0, 0]
-			for v in o.verts do vert_center += v.pos
-			append NODE_VCENTER_AND_LENGTH #( vert_center / o.numverts )
+			for v in o.verts do (
+				local pos = v.pos
+				vert_center += pos
+				append NODE_VERTEX pos
+			)
+			append NODE_VCENTER_MAXLENGTH #( vert_center / o.numverts )
+			nSklVertexs += o.numverts
+			append NODE_NUMVERTEX nSklVertexs
 		)
+
+		NODE_VERTEX_IDX = for i = 1 to NODE_VERTEX.count collect i
+		qsort NODE_VERTEX_IDX compareFN valArray:NODE_VERTEX
+
 		for i = 1 to SKL_COUNT do (
-			local vert_max_length = 0.01
-			vert_center = NODE_VCENTER_AND_LENGTH[i][1]
+			local vert_max_length = 0
+			vert_center = NODE_VCENTER_MAXLENGTH[i][1]
 			for v in SKELETONS[i].verts do (
-				local len = length ( v.pos - vert_center )
+				local len = in coordsys ( transmatrix vert_center ) length v.pos
 				if len > vert_max_length do vert_max_length = len
 			)
-			join NODE_VCENTER_AND_LENGTH[i] #( vert_max_length, i )
+			join NODE_VCENTER_MAXLENGTH[i] #( vert_max_length, i )
 		)
+
+		for i = 1 to nVertexs do (
+			append SKIN_VERTEX #( getvert mesh_ i, i )
+		)
+		qsort SKIN_VERTEX compareFN
+
+		writeLong f nSklVertexs
+		Vertexs = nSklVertexs
 	) else (
 		for v in mesh_.verts do MESH_VERT_CENTER += v.pos
 		MESH_VERT_CENTER /= nVertexs
+		writeLong f nVertexs
+		Vertexs = nVertexs
 	)
-	-- 写顶点 法线
-	local f_cmp = 1
-	for i = 1 to nVertexs do (
-		local v = getVert mesh_ i
+
+	for i = 1 to nFaces do (
+		local face = getface mesh_ i
+		for j = 1 to 3 do (
+			local v = face[j]
+			if SKIN_FACE[v] == undefined then SKIN_FACE[v] = #( i )
+			else append SKIN_FACE[v] i
+		)
+	)
+
+	-- Write vertex, normal
+	for i = 1 to Vertexs do (
 		local node_
+		local vert
+		local matrix
 		if isPerson then (
-			local centers = deepCopy NODE_VCENTER_AND_LENGTH
-			if f_cmp != 1 then (
-				deleteItem centers f_cmp
-				insertItem NODE_VCENTER_AND_LENGTH[f_cmp] centers 1
+			local v = NODE_VERTEX[i]
+			for j = 1 to SKL_COUNT while node_ == undefined do (
+				if i <= NODE_NUMVERTEX[j] then node_ = SKELETONS[j]
 			)
-			for _ in centers do (
-				if length ( v - _[1] ) <= _[2] then (
-					f_cmp = _[3]
-					node_ = SKELETONS[f_cmp]
-					v = in coordsys node_.transform getVert mesh_ i
-					exit
+
+			local idx = findItem NODE_VERTEX_IDX i
+			local skin_v = SKIN_VERTEX[idx]
+			if length ( v - skin_v[1] ) < 1.0 then vert = skin_v[2]
+			else (
+				local inc = #( 1, -1 )
+				for j = 1 to nVertexs while vert == undefined do (
+					for k in deepCopy inc while vert == undefined do (
+						skin_v = SKIN_VERTEX[idx + k]
+						if skin_v == undefined then (
+							deleteItem inc ( findItem inc k )
+						)
+						else if length ( v - skin_v[1] ) < 1.0 then vert = skin_v[2]
+					)
 				)
 			)
-			if node_ == undefined then node_ = SKELETONS[1]
+			if vert == undefined then vert = 1
+
+			v = xformMat ( transmatrix ( v - node_.pos ) ) node_.transform
+			v = v.row4
+
+			matrix = node_.transform
+
 		) else (
+			local v = getvert mesh_ i
 			local len = length ( v - MESH_VERT_CENTER )
 			if len > MAX_LENGTH then MAX_LENGTH = len
+			vert = i
+			matrix = Matrix3 1
 		)
 
-		local normal_faces = #( )
-		for k = 1 to nFaces do (
-			local face = getface mesh_ k
-			for j = 1 to 3 do (
-				if i == face[j] then (
-					if isPerson then p = in coordsys node_.transform getfacenormal mesh_ k
-					else p = getfacenormal mesh_ k
-					append normal_faces p
-				) )
-		)
 		local normal_sum = [0, 0, 0]
-		for normal in normal_faces do normal_sum += normal
-		if normal_faces.count != 0 then normal_sum /= normal_faces.count
+		local faces = SKIN_FACE[vert]
+		if faces != undefined then (
+			for face in faces do (
+				normal_sum += in coordsys matrix getfacenormal mesh_ face
+			)
+			normal_sum /= faces.count
+		)
 		normal_sum = normalize normal_sum
 
-		WriteFloatAsDouble f v.x
-		WriteFloatAsDouble f v.y
-		WriteFloatAsDouble f v.z
-		WriteFloatAsDouble f normal_sum[1]
-		WriteFloatAsDouble f normal_sum[2]
-		WriteFloatAsDouble f normal_sum[3]
+		for i in #( v, normal_sum ) do (
+			for x = 1 to 3 do WriteFloatAsDouble f i[x]
+		)
 	)
 
 	local mat_type = classof mesh_.material
@@ -393,9 +430,9 @@ fn STD_EXP_BOD custom:false = (
 		local tvert1 = getTVert mesh_ textverts.x
 		local tvert2 = getTVert mesh_ textverts.y
 		local tvert3 = getTVert mesh_ textverts.z
-		writeLong f ( vf.x - 1 )
-		writeLong f ( vf.y - 1 )
-		writeLong f ( vf.z - 1 )
+
+		for x = 1 to 3 do writeLong f ( vf[x] - 1 )
+
 		if mat_type == Standardmaterial then (
 			writeLong f mesh_.material.name.count
 			writeString f mesh_.material.name
@@ -406,32 +443,19 @@ fn STD_EXP_BOD custom:false = (
 			writeString f mesh_.material[NID].name
 		)
 		fseek f -1 #seek_cur
-		WriteFloat f tvert1.x
-		WriteFloat f tvert2.x
-		WriteFloat f tvert3.x
-		WriteFloat f tvert1.y
-		WriteFloat f tvert2.y
-		WriteFloat f tvert3.y
+
+		for x = 1 to 2 do (
+			for i in #( tvert1, tvert2, tvert3 ) do WriteFloat f i[x]
+		)
 		WriteFloat f 0
 	)
 
 	-- 骨骼节点数量
 	local CENTER_POS
 	if isPerson then (
-		-- local nodes = #( )
-		-- NODE_NAMES = #( )
-		-- maxOps.cloneNodes SKELETONS cloneType:#copy newNodes:&tmp_mesh
-		-- hide tmp_mesh
-		-- for o in tmp_mesh where (
-		-- 	findItem filter_w1 ( substring o.name 1 11 ) == 0 and findItem filter_w2 ( classof o ) == 0
-		-- ) do (
-		-- 	append nodes o
-		-- 	append NODE_NAMES o.name
-		-- )
-
 		writeLong f SKL_COUNT
 
-		local nSubVertexs = 0
+		local prev_verts
 		for i = 1 to SKL_COUNT do (
 			o = SKELETONS[i]
 			local name = o.name
@@ -441,57 +465,40 @@ fn STD_EXP_BOD custom:false = (
 			writeLong f ( ( findItem NODE_NAMES o.parent.name ) - 1 )
 
 			local matrix = o.transform
-			-- 父级旋转归零后 当前pos-父pos
+			-- 以父级坐标系为基础
 			if i != 1 then (
 				matrix.row4 -= o.parent.pos
 				rotate matrix ( inverse o.parent.transform )
 			)
-			for _ = 1 to 4 do (
-				WriteFloatAsDouble f matrix[_][1]
-				WriteFloatAsDouble f matrix[_][2]
-				WriteFloatAsDouble f matrix[_][3]
-				WriteFloatAsDouble f ( _ / 4 )
+			for j = 1 to 4 do (
+				WriteFloatAsDouble f matrix[j][1]
+				WriteFloatAsDouble f matrix[j][2]
+				WriteFloatAsDouble f matrix[j][3]
+				WriteFloatAsDouble f ( j / 4 )
 			)
 
 			local numverts = o.numverts
 			writeLong f numverts
-			writeLong f nSubVertexs
+			if i == 1 then prev_verts = 0
+			else prev_verts = NODE_NUMVERTEX[i - 1]
+			writeLong f prev_verts
 			writeLong f 1
 
-			-- matrix = matrix3 1
-			-- matrix.row4 = o.pos
-			-- undo off (
-			-- 	o.transform = matrix
-			-- )
-			-- local vert_max_length = 0
-			-- local vert_center = [0, 0, 0]
-			-- for i = 1 to numverts do (
-			-- 	vert_center += getvert o i
-			-- )
-			-- vert_center /= numverts
-			vcenter_length = NODE_VCENTER_AND_LENGTH[i]
-			-- 旋转归零后 顶点中心-轴
-			local offset = xformMat ( transmatrix ( vcenter_length[1] - o.pos ) ) o.transform
+			vcenter_maxlength = NODE_VCENTER_MAXLENGTH[i]
+			-- 以父级坐标系为基础
+			local offset = xformMat ( transmatrix ( vcenter_maxlength[1] - o.pos ) ) o.transform
 			WriteFloatAsDouble f offset.row4.x
 			WriteFloatAsDouble f offset.row4.y
 			WriteFloatAsDouble f offset.row4.z
 
-			-- for i = 1 to numverts do (
-			-- 	local v = getvert o i
-			-- 	local len = length ( v - vert_center )
-			-- 	-- 距顶点中心最远顶点的长度
-			-- 	if len > vert_max_length then vert_max_length = len
-			-- )
-			WriteFloatAsDouble f vcenter_length[2]
+			-- 距顶点中心最远顶点的长度
+			WriteFloatAsDouble f vcenter_maxlength[2]
 
-			writeLong f nSubVertexs
+			writeLong f prev_verts
 			writeLong f numverts
-
-			nSubVertexs += numverts
 		)
 		CENTER_POS = SKELETONS[1].pos
 		MAX_LENGTH = 82.0 * SKL_COUNT
-		-- delete tmp_mesh
 	) else (
 		CENTER_POS = MESH_VERT_CENTER
 		
@@ -523,6 +530,7 @@ fn STD_EXP_BOD custom:false = (
 	WriteFloatAsDouble f CENTER_POS.y
 	WriteFloatAsDouble f CENTER_POS.z
 	-- FIXME: 距MESH_VERT_CENTER最远的 人物不明
+	-- 移动skin和skl的顶点都不影响此值 只有当移动骨骼的轴才会影响
 	WriteFloatAsDouble f MAX_LENGTH
 
 	Write_B_Fire_Fuego()

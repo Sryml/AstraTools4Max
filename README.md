@@ -13,14 +13,15 @@
 
 3DStudio MAXScript Utility to modify the Blade of Darkness model.
 3DStudio Max 2.5 or higher compatible
-- 3ds Max 2.5✅
-- 3ds Max 2012 64-bit✅
+
+- 3ds Max 2.5 (Import/Export Unavailable)✅
+- 3ds Max 2012 64-bit (Scripting is based on this)✅
 
 Copyright (C) Dec 2021 Sryml
 
 ## Usage
 
-Copy the contents of the "3ds Max" folder to `3DSMAX2.5` or `3ds Max xxxx`
+Copy the contents of the "3ds Max" folder to "`3DSMAX2.5`" or "`3ds Max xxxx`"
 
 ## Future
 
@@ -31,23 +32,28 @@ Copy the contents of the "3ds Max" folder to `3DSMAX2.5` or `3ds Max xxxx`
 
 ## Update
 
+### v0.6.2
+
+- Improve the compatibility of Export BOD
+- Fixed character skin
+- Optimize export efficiency
+
 ### v0.5.9
 
-`[+]`Added function `Export BOD`
+- Added function `Export BOD`
 
 ### v0.3
 
-`[+]`Added function `Animation Reverse`
-
-`[+]`Added function `Animation Cut`
+- Added function `Animation Reverse`
+- Added function `Animation Cut`
 
 ### v0.2
 
-`[+]`Added function `Animation Splice`
+- Added function `Animation Splice`
 
 ### v0.1
 
-`[+]`Added function `Transform character Scale`
+- Added function `Transform character Scale`
 
 ## Reference
 
@@ -55,7 +61,7 @@ TPBladeToolsChar_M25 by TPTPT (TP's tools inspired me to do this project)
 
 ## Thanks
 
-The Export function refers to Harrison's script.
+The Export function refers to Harrison's [script](https://disk.yandex.ru/d/8koexOk_iu4HG).
 
 The max file provided by Harrison makes this possible.
 
