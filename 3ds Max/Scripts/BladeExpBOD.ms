@@ -265,7 +265,7 @@ fn STD_EXP_BOD custom:false = (
 		isKindOf o Editable_mesh and findItem filter_w1 ( substring o.name 1 11 ) == 0
 	) do append mesh_ o
 	if mesh_.count > 1 then (
-		maxOps.cloneNodes mesh_ cloneType:#copy newNodes:&tmp
+		undo off maxOps.cloneNodes mesh_ cloneType:#copy newNodes:&tmp
 		hide tmp
 		for i = 2 to tmp.count do (
 			undo off attach tmp[1] tmp[i]
@@ -281,7 +281,7 @@ fn STD_EXP_BOD custom:false = (
 	)
 
 	local OBJECT_TRANSFORM = OBJECT_GROUP.transform
-	OBJECT_GROUP.transform = matrix3 1
+	undo off OBJECT_GROUP.transform = matrix3 1
 
 	local f = BOD_FILE = fopen SaveFileName "wb"
 	writeLong f inter_name.count
@@ -383,11 +383,14 @@ fn STD_EXP_BOD custom:false = (
 				local inc = #( 1, -1 )
 				for j = 1 to nVertexs while vert == undefined do (
 					for k in deepCopy inc while vert == undefined do (
-						skin_v = SKIN_VERTEX[idx + k]
-						if skin_v == undefined then (
+						local idx2 = idx + k * j
+						if idx2 > nVertexs or idx2 == 0 then (
 							deleteItem inc ( findItem inc k )
 						)
-						else if length ( v - skin_v[1] ) < 1.0 then vert = skin_v[2]
+						else (
+							skin_v = SKIN_VERTEX[idx2]
+							if length ( v - skin_v[1] ) < 1.0 then vert = skin_v[2]
+						)
 					)
 				)
 			)
@@ -565,7 +568,7 @@ fn STD_EXP_BOD custom:false = (
 
 	-- 清理
 	if mesh_.name == "BladeExpBOD_tmp" then (
-		delete mesh_
+		undo off delete mesh_
 	)
-	OBJECT_GROUP.transform = OBJECT_TRANSFORM
+	undo off OBJECT_GROUP.transform = OBJECT_TRANSFORM
 )
