@@ -26,6 +26,33 @@ fn getFaceSmoothGroupB obj face =
 	join sg_bitarray arry
 )
 
+fn deepCopy2 arry = (
+	local new_array = join #( ) arry
+	for i = 1 to new_array.count do (
+		if isKindOf new_array[i] array then new_array[i] = deepCopy2 new_array[i]
+	)
+	return new_array 
+)
+
+fn compareFN v1 v2 valArray: = (
+	if valArray != unsupplied then (
+		local v1 = valArray[v1]
+		local v2 = valArray[v2]
+	)
+	if isKindOf v1 Array then (
+		local v1 = v1[1]
+		local v2 = v2[1]
+	)
+	if v1.x < v2.x then return -1
+	else if v1.x == v2.x then (
+		if v1.y < v2.y then return -1
+		else if v1.y == v2.y then (
+			if v1.z < v2.z then return -1
+			else if v1.z == v2.z then return 0
+		)
+	)
+	return 1
+)
 --
 
 fn Write_B_Fire_Fuego = (
@@ -198,26 +225,6 @@ fn Write_Blade_Trails = (
 )
 
 --
-fn compareFN v1 v2 valArray: = (
-	if valArray != unsupplied then (
-		local v1 = valArray[v1]
-		local v2 = valArray[v2]
-	)
-	if isKindOf v1 Array then (
-		local v1 = v1[1]
-		local v2 = v2[1]
-	)
-	if v1.x < v2.x then return -1
-	else if v1.x == v2.x then (
-		if v1.y < v2.y then return -1
-		else if v1.y == v2.y then (
-			if v1.z < v2.z then return -1
-			else if v1.z == v2.z then return 0
-		)
-	)
-	return 1
-)
---
 
 fn STD_EXP_BOD custom:false = (
 	local SaveFileName
@@ -382,7 +389,7 @@ fn STD_EXP_BOD custom:false = (
 			else (
 				local inc = #( 1, -1 )
 				for j = 1 to nVertexs while vert == undefined do (
-					for k in deepCopy inc while vert == undefined do (
+					for k in join #( ) inc while vert == undefined do (
 						local idx2 = idx + k * j
 						if idx2 > nVertexs or idx2 == 0 then (
 							deleteItem inc ( findItem inc k )
