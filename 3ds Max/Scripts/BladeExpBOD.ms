@@ -1,5 +1,6 @@
 --
 global BOD_FILE
+global SAVE_FILENAME
 global GROUP_NAME
 global NODE_NAMES = #( )
 --
@@ -52,6 +53,13 @@ fn compareFN v1 v2 valArray: = (
 		)
 	)
 	return 1
+)
+
+
+fn export_failed msg = (
+	messageBox msg beep:false
+	fclose BOD_FILE
+	deleteFile SAVE_FILENAME
 )
 --
 
@@ -227,19 +235,18 @@ fn Write_Blade_Trails = (
 --
 
 fn STD_EXP_BOD custom:false = (
-	local SaveFileName
 	if custom then (
-		SaveFileName = getSaveFileName types:"Blade File (*.BOD)|*.BOD|All files (*.*)|*.*|"
+		SAVE_FILENAME = getSaveFileName types:"Blade File (*.BOD)|*.BOD|All files (*.*)|*.*|"
 	) else (
-		SaveFileName = maxFilePath + ( getFilenameFile maxFileName )
+		SAVE_FILENAME = maxFilePath + ( getFilenameFile maxFileName )
 	)
-	if SaveFileName == undefined or SaveFileName == "" then (
+	if SAVE_FILENAME == undefined or SAVE_FILENAME == "" then (
 		return false
 	) else (
-		if findString SaveFileName ".BOD" == undefined then SaveFileName += ".BOD"
+		if findString SAVE_FILENAME ".BOD" == undefined then SAVE_FILENAME += ".BOD"
 	)
-	if not custom and doesFileExist SaveFileName then (
-		if not queryBox ( SaveFileName + " already exists.\nDo you want to replace it?" ) title:"Export BOD File" beep:false then return false
+	if not custom and doesFileExist SAVE_FILENAME then (
+		if not queryBox ( SAVE_FILENAME + " already exists.\nDo you want to replace it?" ) title:"Export BOD File" beep:false then return false
 	)
 
 	-- check group
@@ -290,7 +297,7 @@ fn STD_EXP_BOD custom:false = (
 	local OBJECT_TRANSFORM = OBJECT_GROUP.transform
 	undo off OBJECT_GROUP.transform = matrix3 1
 
-	local f = BOD_FILE = fopen SaveFileName "wb"
+	local f = BOD_FILE = fopen SAVE_FILENAME "wb"
 	writeLong f inter_name.count
 	writeString f inter_name
 	fseek f -1 #seek_cur
@@ -309,6 +316,7 @@ fn STD_EXP_BOD custom:false = (
 		local NODE_NUMVERTEX = #( )
 		local NODE_VERTEX_IDX
 		local SKIN_VERTEX = #( )
+		local SKIN_VERTEX_MAP = #( )
 		local SKL_COUNT
 
 		NODE_NAMES = #( )
@@ -401,7 +409,7 @@ fn STD_EXP_BOD custom:false = (
 					)
 				)
 			)
-			if vert == undefined then vert = 1
+			if vert != undefined then SKIN_VERTEX_MAP[vert] = i
 
 			v = xformMat ( transmatrix ( v - node_.pos ) ) node_.transform
 			v = v.row4
@@ -417,21 +425,42 @@ fn STD_EXP_BOD custom:false = (
 		)
 
 		local normal_sum = [0, 0, 0]
-		local faces = SKIN_FACE[vert]
-		if faces != undefined then (
-			for face in faces do (
-				normal_sum += in coordsys matrix getfacenormal mesh_ face
+		if vert == undefined then (
+			normal_sum = undefined
+		) else (
+			local faces = SKIN_FACE[vert]
+			if faces != undefined then (
+				for face in faces do (
+					normal_sum += in coordsys matrix getfacenormal mesh_ face
+				)
+				normal_sum /= faces.count
 			)
-			normal_sum /= faces.count
+			normal_sum = normalize normal_sum
 		)
-		normal_sum = normalize normal_sum
 
-		for i in #( v, normal_sum ) do (
-			for x = 1 to 3 do WriteFloatAsDouble f i[x]
+		for x = 1 to 3 do WriteFloatAsDouble f v[x]
+		if normal_sum == undefined then (
+			for _ = 1 to 3 do (
+				-- NaN
+				WriteFloatAsDouble f 0
+				fseek f -2 #seek_cur
+				writeByte 0xF8
+				writeByte 0xFF
+			)
+		) else (
+			for x = 1 to 3 do WriteFloatAsDouble f normal_sum[x]
 		)
 	)
 
 	local mat_type = classof mesh_.material
+	if mat_type == UndefinedClass then (
+		export_failed "Error: The model is missing material"
+		return false
+	)
+	if getNumTVerts mesh_ == 0 then (
+		export_failed "Error: The model is missing UVWs"
+		return false
+	)
 	writeLong f nFaces
 	-- 写拓扑面 材质 UV
 	for i = 1 to nFaces do (
@@ -441,7 +470,11 @@ fn STD_EXP_BOD custom:false = (
 		local tvert2 = getTVert mesh_ textverts.y
 		local tvert3 = getTVert mesh_ textverts.z
 
-		for x = 1 to 3 do writeLong f ( vf[x] - 1 )
+		for x = 1 to 3 do (
+			v = SKIN_VERTEX_MAP[vf[x]]
+			if v == undefined then v = 1
+			writeLong f ( v - 1 )
+		)
 
 		if mat_type == Standardmaterial then (
 			writeLong f mesh_.material.name.count
