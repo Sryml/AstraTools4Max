@@ -15,6 +15,7 @@
 3DStudio Max 2.5 or higher compatible
 
 - 3ds Max 2.5 (Import/Export Unavailable)✅
+- 3ds Max 8 (avg_dlx70.dlx Plug-in required)✅
 - 3ds Max 2012 64-bit (Scripting is based on this)✅
 
 Copyright (C) Dec 2021 Sryml
@@ -31,6 +32,12 @@ Copy the contents of the "3ds Max" folder to "`3DSMAX2.5`" or "`3ds Max xxxx`"
 - Follow Angle for Animation Splice
 
 ## Update
+
+### v0.6.4
+
+- Fixed character skin again
+- Fixed skin vertex search
+- Fixed max8 error
 
 ### v0.6.2
 
