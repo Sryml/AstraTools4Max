@@ -11,18 +11,18 @@
 
 <br>
 
-3DStudio MAXScript Utility to modify the Blade of Darkness model.
-3DStudio Max 2.5 or higher compatible
+3DS MAX Utility to modify the Blade of Darkness model.
+3DS Max 2.5 or higher compatible  
 
-- 3ds Max 2.5 (Import/Export Unavailable)✅
-- 3ds Max 8 (avg_dlx70.dlx Plug-in required)✅
-- 3ds Max 2012 64-bit (Scripting is based on this)✅
-
-Copyright (C) Dec 2021 Sryml
+Current test version: **3ds Max 2019**  
+*Note: The max2.5 export function is not available.*
 
 ## Usage
 
-Copy the contents of the "3ds Max" folder to "`3DSMAX2.5`" or "`3ds Max xxxx`"
+Copy the "Scripts" folder from "3ds Max" to the installation directory(`3DSMAX2.5/3ds Max xxxx`) of 3dsmax.
+
+## 3D Tutorials for Blade
+- [Severance: Blade 3D by R3D](https://www.moddb.com/games/severance-blade-of-darkness/tutorials/severance-blade-3d-by-r3d)
 
 ## Future
 
@@ -32,6 +32,9 @@ Copy the contents of the "3ds Max" folder to "`3DSMAX2.5`" or "`3ds Max xxxx`"
 - Follow Angle for Animation Splice
 
 ## Update
+
+### v0.7.0
+
 
 ### v0.6.4
 
@@ -57,19 +60,25 @@ Copy the contents of the "3ds Max" folder to "`3DSMAX2.5`" or "`3ds Max xxxx`"
 ### v0.2
 
 - Added function `Animation Splice`
+- demonstration   
+  https://youtu.be/utP812FJymQ
 
 ### v0.1
 
 - Added function `Transform character Scale`
 
+## Known Issues
+
+
 ## Reference
 
-TPBladeToolsChar_M25 by TPTPT (TP's tools inspired me to do this project)
+Harrison's export [script](https://disk.yandex.ru/d/8koexOk_iu4HG).  
+TPBladeToolsChar_M25 by TPTPT (TP's tools inspired me to do this project)  
+The logo from [Blade of Darkness](https://store.steampowered.com/app/1710170).
 
 ## Thanks
 
-The Export function refers to Harrison's [script](https://disk.yandex.ru/d/8koexOk_iu4HG).
-
 The max file provided by Harrison makes this possible.
 
-The logo from [Blade of Darkness](https://store.steampowered.com/app/1710170).
+## Interface
+![Interface](https://github.com/Sryml/examples/interface.png)

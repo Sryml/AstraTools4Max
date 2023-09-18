@@ -37,9 +37,9 @@ utility AstraTools "Astra Tools" (
 	--
 	
 	-- About
-	rollout AboutScript "About AstraTools v0.6.4" (
-		Bitmap logo Filename:"assets/capsule_231x87.bmp"
-		Label ccLab1 "(C) Dec 2021 Sryml"
+	rollout AboutScript "About AstraTools v0.7.0" (
+		Bitmap logo Filename:"AstraTools/header.bmp"
+		Label ccLab1 "(C) 09 2023 Sryml"
 		Label ccLab2 "GNU General Public License v3.0"
 	)
 
@@ -485,11 +485,11 @@ utility AstraTools "Astra Tools" (
 		label ccLab2 ""
 		
 		on EXP_BOD pressed do (
-			filein "BladeExpBOD.ms"
+			filein "AstraTools/bldexp_plus.ms"
 			execute "STD_EXP_BOD()"
 		)
 		on EXP_BOD_AS pressed do (
-			filein "BladeExpBOD.ms"
+			filein "AstraTools/bldexp_plus.ms"
 			execute "STD_EXP_BOD custom:true"
 		)
 	)
@@ -530,4 +530,6 @@ utility AstraTools "Astra Tools" (
 )
 
 openUtility AstraTools
-
+if isProperty != undefined then (
+	if (isProperty AstraTools "open") then AstraTools.open = false
+)
