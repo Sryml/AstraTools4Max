@@ -55,6 +55,13 @@ fn compareFN v1 v2 valArray:  = (
 	return 1
 )
 
+fn edgeSort v1 v2 = (
+	v1 = (filterString v1.name "_")[3] as Integer
+	v2 = (filterString v2.name "_")[3] as Integer
+	if v1 < v2 then return -1
+	if v1 > v2 then return 1
+	return 0
+)
 
 fn export_failed msg = (  
 	messageBox msg beep:false  
@@ -149,6 +156,8 @@ fn Write_Blade_Anchors = (
 fn Write_Blade_Edges = (  
 	local f = BOD_FILE  
 	local objs = execute ( "$" + GROUP_NAME + "...Blade_Edge_*" )  
+	objs = objs as array
+	qsort objs edgeSort
 	local nObjs = objs.count  
 	-- If not, write four 0        
 	writeLong f nObjs  
@@ -156,106 +165,23 @@ fn Write_Blade_Edges = (
 	for o in objs do (  
 		local parent_ = o.parent  
 		addModifier o ( Edit_Mesh ())  
-		--/*       
-		local p1, p2  
-		local vertex_arr, normal_arr  
-		vertex_arr = #()  
-		normal_arr = #()  
-
-		-- 8 vertexs   
-		for i = 1 to o.numverts do (  
-			append vertex_arr (getvert o i)  
-		)  
-		/*
-		-- [1] - [3], [2] - [3] 
-		local order = #( 
-			#(2,3,1), 
-			#(3,4,1), 
-			#(4,2,1), 
-			#(5,6,2), 
-			#(6,3,2), 
-			#(6,7,3), 
-			#(7,4,3), 
-			#(7,5,4), 
-			#(5,2,4), 
-			#(8,6,5), 
-			#(8,7,6), 
-			#(8,5,7))  
-
-		local v, dist
-		for i = 1 to 12 do ( 
-			p1 = vertex_arr[order[i][1]] - vertex_arr[order[i][3]] 
-			p2 = vertex_arr[order[i][2]] - vertex_arr[order[i][3]] 
-			local position1 = [   
-				p1.y * p2.z - p1.z * p2.y,
-				p1.z * p2.x - p1.x * p2.z,
-				p1.x * p2.y - p1.y * p2.x]  
-			v = position1 * position1  
-			dist = (v.x + v.y + v.z) ^ 0.5  
-			position1 = position1 / dist  --单位向量
-			v = vertex_arr[order[i][3]] * position1  
-			local value1 = -(v.x + v.y + v.z)  
-			append normal_arr #(position1, value1) 
-		) 
-		*/		 
-		local v, normal  
-		local flags = #() 
-		local normal_1, normal_2 
-		normal_1 = normal_2 = 1 
-		-- 12 faces   
-		for i = 1 to o.numfaces do (  
-			normal = getfacenormal o i  
-			v = normal * vertex_arr[(getface o i)[1]]  
-			v = -(v[1] + v[2] + v[3])  
-			append normal_arr #(normal, v)  
-			/*
-			local dot_product 
-			append flags 1 
-			for j = 1 to flags.count-1 do ( 
-				-- if flags[j] == 0 then continue 
-				-- bldexp.dle's precision is 6 decimal places 
-				if abs(v - normal_arr[j][2]) < 1e-3 then ( 
-					dot_product = normal * normal_arr[j][1] 
-					dot_product = dot_product[1] + dot_product[2] + dot_product[3] 
-					if (dot_product > 0.999) then ( 
-						-- flags[j] = 0 -- 'bldexp.dle' assigns it 0, but I don't think so. 
-						flags[flags.count] = 0 
-						exit 
-					) 
-				) 
-			) */
-		)  
-		normal_1 = findItem flags 1 
-		if normal_1 != 0 then flags[normal_1] = 0 else normal_1 = 1 
-		normal_2 = findItem flags 1 
-		if normal_2 == 0 then normal_2 = 1 
-
+		--
+		local vertex_arr, normal
 		local point3_1, point3_2, point3_3 
-
-		-- point3_2 
-		v = (normal_arr[normal_1][2] + normal_arr[normal_2][2]) * 0.5 
-		point3_2 = normal_arr[normal_1][1] * v 
-		-- point3_3 
-		local v1 = vertex_arr[(getface o normal_1)[1]] 
-		local v2 = vertex_arr[(getface o normal_1)[2]] 
-		local v3 = vertex_arr[(getface o normal_1)[3]] 
-		-- point3_1 = (v1 + v2) * 0.5 
-		-- point3_3 = v3 - point3_1 
-		point3_1 = (v2 + v3) * 0.5 
-		point3_3 = v1 - point3_1 
-		-- point3_1 
-		point3_1 += point3_2 
-		--*/        
-
-		/* XXX  
-		local p1 = in coordsys parent_.transform ( getvert o 5 + getvert o 6 ) / 2  
-		local p2 = in coordsys parent_.transform ( getvert o 2 + getvert o 3 ) / 2  
-
-		local point3_1 = ( p1 + p2 ) / 2  
-		local point3_2 = p1 - point3_1  
-		local point3_3 = in coordsys parent_.transform getvert o 7 - p1  
-		*/ 
-
+		-- 8 vertexs   
+		vertex_arr = #()
+		for i = 1 to o.numverts do (  
+			append vertex_arr (in coordsys parent_.transform getvert o i)  
+		)  
+		local v1 = (vertex_arr[2] + vertex_arr[3]) * 0.5
+		local v2 = (vertex_arr[5] + vertex_arr[6]) * 0.5
+		if abs(length v1) < abs(length v2) then (
+			normal = getfacenormal o 1
+		) else normal = getfacenormal o 10
+		point3_1 = (v1 + v2) * 0.5
+		point3_2 = (distance v1 v2) * 0.5 * normal
+		point3_3 = vertex_arr[4] - v1
+		--
 		writeLong f 0  
 		-- parent index        
 		local idx = findItem NODE_NAMES parent_.name  
@@ -354,6 +280,8 @@ fn STD_EXP_BOD custom:false = (
 		messageBox "Internal name should not be empty" beep:false  
 		return false  
 	)  
+
+	clearSelection()
 
 	local SKELETONS = execute ( "$" + GROUP_NAME + "/Blade_Skeleton/*...*" )  
 	local isPerson = SKELETONS.count > 0  
