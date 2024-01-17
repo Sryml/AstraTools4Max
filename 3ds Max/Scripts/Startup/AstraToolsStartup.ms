@@ -30,16 +30,26 @@ utility AstraTools "Astra Tools" (
 	local main_win
 
 	--
+	fn loadMaxFileWithZoom f = (
+		loadMaxFile f
+		hide $*
+		max vpt left
+		unhide $*
+		max zoomext sel all
+		max izoom out
+	)
+
 	fn BldObj_filt obj = isKindOf obj Dummy and findString obj.name "Blade_Object_" == 1
 
 	local HAS_FOPEN = fopen != undefined
 	local HAS_DOUBLE = WriteFloatAsDouble != undefined
+
 	--
-	
+
 	-- About
-	rollout AboutScript "About AstraTools v0.7.0" (
-		Bitmap logo Filename:"AstraTools/header.bmp"
-		Label ccLab1 "(C) 09 2023 Sryml"
+	rollout AboutScript "About AstraTools v0.9.0" (
+		Bitmap logo Filename:"AstraTools/header.bmp" applyUIScaling:false
+		Label ccLab1 "(C) 01 2024 Sryml"
 		Label ccLab2 "GNU General Public License v3.0"
 	)
 
@@ -48,7 +58,7 @@ utility AstraTools "Astra Tools" (
 		button select_group "Select A Group" width:140 toolTip:"Group of Blade_Object_..." --height:20
 		
 		spinner spread "Scale:" range:[0.01, 1000, 1] type:#float scale:0.25 fieldwidth:50 align:#center offset:[0, 20]
-		button apply_scale "Apply" width:45 height:20
+		button apply_scale "Apply" width:55 -- height:20
 		
 		-- button GetPos "GetPos" align:#center across:2 offset:[0,20]
 		-- button SetPos "SetPos" align:#center offset:[0,20]
@@ -167,280 +177,613 @@ utility AstraTools "Astra Tools" (
 
 	-- 动画切割/拼接
 	rollout AnimationSplice "Animation Cut/Splice" (
-		button select_anm "Select AnmMax File" width:145 tooltip:"Double click in the list to delete the item."
-		group "Animation Range" (
-			listbox ui_paths "" items:#( ) selection:0 height:4
-			label ui_anmrange1_v "start time: 0" align:#left across:2
-			label ui_anmrange2_v "end time: 100" align:#left
-			slider ui_anmrange1 "" orient:#horizontal type:#integer range:[0, 99, 0] align:#left across:2
-			slider ui_anmrange2 "" orient:#horizontal type:#integer range:[1, 100, 100] align:#right
-		)
-		group "Settings" (
-			label ui_transition_v "Transition: 8" align:#left across:2
-			checkbox follow_angle "Follow Angle" align:#right enabled:false
-			slider ui_transition "" orient:#horizontal type:#integer range:[0, 50, 8] -- 8
-		)
-		label blank ""
-		button START "START" width:45 height:20
+		local CB_F_OffsetDefault = true
+		local TransitionDefault = 8
+		-- button BTN_Open "Add AnmMax File" width:145 tooltip:"Double click in the list to delete the item."
+		button BTN_Open "Open" across:2 width:85 align:#center
+		button BTN_AddCurr "Add Current" width:85 align:#center
+		listbox LB_Anims "" items:#( ) selection:0 height:4 -- width:144 align:#left across:4
+		button BTN_MoveUp "Move Up" across:2 width:85 align:#center
+		button BTN_MoveDn "Move Dn" width:85 align:#center
+		button BTN_Del "Del" across:2 width:85 align:#center
+		button BTN_DelAll "Del All" width:85 align:#center
+		-- group "Animation List" (
+		label LAB_AnmRangeStart "start time: 0" across:2 align:#left
+		label LAB_AnmRangeEnd "end time: 100" align:#left
+		slider SL_AnmRangeStart "" orient:#horizontal type:#integer range:[0, 99, 0] align:#left across:2 ticks:1
+		slider SL_AnmRangeEnd "" orient:#horizontal type:#integer range:[1, 100, 100] align:#right ticks:1
+		-- )
+		-- group "Settings" (
+		label LAB_Trans "Transition: 8" align:#left
+		slider SL_Trans "" orient:#horizontal type:#integer range:[0, 50, 8] tooltip:"Right click to restore default values" -- 8
 
-		local anm_paths = #( )
+		label LAB_AnmAngle "Angle: 0" align:#left across:2
+		checkbox CB_FollowAngle "Follow Angle" align:#right checked:false
+		slider SL_AnmAngle "" orient:#horizontal type:#integer range:[-180, 180, 0] enabled: true
 
-		fn ui_paths_selected x init:false = (
-			local start_, start, end_, end
-			local isload = false
-			if filenameFromPath x[1] != maxFileName do (
-				isload = true
-				loadMaxFile x[1]
-			)
-			if isload or init then (
-				start_ = animationRange.start
-				end_ = animationRange.end
-				x[3] = animationRange
-			) else (
-				start_ = x[3].start
-				end_ = x[3].end
-			)
-			if x[2] != undefined then (
-				start = x[2].start
-				end = x[2].end
-				sliderTime = start
-				if isload do animationRange = x[2]
-			) else (
-				start = start_
-				end = end_
-			)
+		-- label LAB_FB_Offset "FB Offset: 0" align:#left across:2
+		checkbox CB_F_Offset "Auto Offset" checked:CB_F_OffsetDefault
+		label LAB_R_Offset "X Offset:" align:#left across:2
+		spinner SP_R_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
+		label LAB_F_Offset "Y Offset:" align:#left across:2
+		spinner SP_F_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left enabled:( not CB_F_OffsetDefault )
+		label LAB_U_Offset "Z Offset:" align:#left across:2
+		spinner SP_U_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
+		
 
-			ui_anmrange1.range = [start_, end_ - 1, 0]
-			ui_anmrange1.value = start
-			ui_anmrange2.range = [start_ + 1, end_, 0]
-			ui_anmrange2.value = end
-			ui_anmrange1_v.text = "start time: " + ui_anmrange1.value as string
-			ui_anmrange2_v.text = "end time: " + ui_anmrange2.value as string
-		)
-		fn init from_select:false = (
-			if maxFileName != "" and anm_paths.count == 0 do (
-				ui_paths.items = #( maxFileName )
-				anm_paths = #( #( maxFilePath + maxFileName ) )
-				ui_paths.selection = 1
-				if from_select do loadMaxFile anm_paths[1][1]
-				ui_paths_selected anm_paths[1] init:true
-			)
+		-- Angle Ang_AnmAngle "Angle 1" diameter:64 align:#left range:[-180, 180, 0] startdegrees:0 color:( color 0 120 215 )
+		-- slider SL_FB_Offset "" orient:#horizontal type:#integer range:[-200, 200, 0] enabled:( not CB_F_OffsetDefault ) tooltip:"Front and Back Offset"
+		-- )
+		-- label blank ""
+		button BTN_Start "START" width:55 -- height:20
+
+		struct AnimStruct (
+			path,
+			cutRange,
+			anmRange,
+			Trans = TransitionDefault,
+			Angle = 0,
+			followAngle = false,
+			autoOffset = CB_F_OffsetDefault,
+			FrontOffset = 0,
+			UpOffset = 0,
+			RightOffset = 0
 		)
 
-		on select_anm pressed do (
-			init from_select:true
+		local AnimData = #( )
+		local LB_Anims_Idx = 0
+
+		fn updateUI i = (
+			local anmRange, cutRange
+			local data = AnimData[i]
+			anmRange = data.anmRange
+			cutRange = data.cutRange
+			SL_AnmRangeStart.range = [anmRange.start, anmRange.end - 1, 0]
+			SL_AnmRangeStart.value = cutRange.start
+			SL_AnmRangeEnd.range = [anmRange.start + 1, anmRange.end, 0]
+			SL_AnmRangeEnd.value = cutRange.end
+			LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
+			LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
+			
+			SL_Trans.value = data.Trans
+			LAB_Trans.text = "Transition: " + data.Trans as string
+
+			CB_FollowAngle.checked = data.followAngle
+			SL_AnmAngle.enabled = not data.followAngle
+			SL_AnmAngle.value = data.Angle
+			LAB_AnmAngle.text = "Angle: " + data.Angle as string
+			
+			CB_F_Offset.checked = data.autoOffset
+			SP_R_Offset.enabled = not data.autoOffset
+			SP_F_Offset.enabled = not data.autoOffset
+			SP_U_Offset.enabled = not data.autoOffset
+			SP_F_Offset.value = data.FrontOffset
+			SP_U_Offset.value = data.UpOffset
+			SP_R_Offset.value = data.RightOffset
+			-- SL_FB_Offset.enabled = not data.autoOffset
+			-- SL_FB_Offset.value = data.FrontOffset
+			-- LAB_FB_Offset.text = "FB Offset: " + data.FrontOffset as string
+		)
+
+		fn init = (
+			if maxFileName != "" do (
+				nAnms = AnimData.count
+				if nAnms == 0 or ( nAnms == 1 and LB_Anims.items[1] != maxFileName ) do (
+					LB_Anims.items = #( maxFileName )
+					-- AnimData = #( #( maxFilePath + maxFileName, animationRange, animationRange ) )
+					AnimData = #( AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange )
+					LB_Anims.selection = LB_Anims_Idx = 1
+					-- if from_select do loadMaxFile AnimData[1].path
+					-- LB_Anims_Selected AnimData[1] init:true
+					updateUI LB_Anims.selection
+				)
+			)
+		)
+
+		fn LB_Anims_Selected i = (
+			local data = AnimData[i]
+			local anmRange, cutRange
+			if filenameFromPath data.path != maxFileName do (
+				if AnimData.count == 1 do (
+					init()
+					return true
+				)
+				loadMaxFileWithZoom data.path
+			)
+			anmRange = data.anmRange
+			cutRange = data.cutRange
+
+			animationRange = cutRange
+			updateUI i
+			if LB_Anims_Idx != i do sliderTime = cutRange.start
+
+			LB_Anims_Idx = i
+
+			-- SL_AnmRangeStart.range = [start_, end_ - 1, 0]
+			-- SL_AnmRangeStart.value = start
+			-- SL_AnmRangeEnd.range = [start_ + 1, end_, 0]
+			-- SL_AnmRangeEnd.value = end
+			-- LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
+			-- LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
+		)
+
+		on BTN_Open pressed do (
+			-- init()
 			local obj
 			local f = getOpenFileName types:"Blade Anm (*.max)|*.max|All files (*.*)|*.*|"
 			if f != undefined do (
-				local tmp = ui_paths.items
-				append tmp ( filenameFromPath f )
-				ui_paths.items = tmp
-				ui_paths.selection = ui_paths.items.count
-				append anm_paths #( f )
-				ui_paths_selected anm_paths[ui_paths.selection]
+				loadMaxFileWithZoom f
+				-- if viewport != undefined do viewport.setLayout #layout_1
+				append LB_Anims.items ( filenameFromPath f )
+				-- update listbox
+				LB_Anims.items = LB_Anims.items
+				LB_Anims.selection = LB_Anims_Idx = LB_Anims.items.count
+				append AnimData ( AnimStruct f animationRange animationRange )
+				updateUI LB_Anims.selection
+				-- LB_Anims_Selected LB_Anims.selection
 			)
 		)
-		on ui_paths selected i do (
-			ui_paths_selected anm_paths[i]
-		)
-		on ui_paths doubleClicked i do (
-			local tmp = ui_paths.items
-			deleteItem tmp i
-			ui_paths.items = tmp
-			deleteItem anm_paths i
-			if anm_paths.count > 0 do (
-				ui_paths.selection = anm_paths.count
-				ui_paths_selected anm_paths[anm_paths.count]
+
+		on BTN_AddCurr pressed do (
+			if maxFileName != "" do (
+				if AnimData.count == 0 then (
+					init()
+				) else (
+					insertItem maxFileName LB_Anims.items ( LB_Anims_Idx + 1 )
+					LB_Anims.items = LB_Anims.items
+					local data = AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange
+					if LB_Anims.items[LB_Anims_Idx] == maxFileName do (
+						data.cutRange = data.anmRange = AnimData[LB_Anims_Idx].anmRange
+					)
+					insertItem data AnimData ( LB_Anims_Idx + 1 )
+					LB_Anims.selection = LB_Anims_Idx = LB_Anims_Idx + 1
+					LB_Anims_Selected LB_Anims.selection
+				)
 			)
 		)
-		on ui_anmrange1 changed val do (
-			ui_anmrange1_v.text = "start time: " + val as string
-			if val >= ui_anmrange2.value do (
-				ui_anmrange2.value = val + 1
-				ui_anmrange2_v.text = "end time: " + ui_anmrange2.value as string
+
+		on BTN_MoveUp pressed do (
+			if AnimData.count > 1 do (
+				local idx = LB_Anims_Idx - 1
+				idx = mod idx AnimData.count
+				if idx == 0 do idx = AnimData.count
+
+				local data = AnimData[LB_Anims_Idx]
+				deleteItem AnimData LB_Anims_Idx
+				deleteItem LB_Anims.items LB_Anims_Idx
+				insertItem ( filenameFromPath data.path ) LB_Anims.items idx
+				insertItem data AnimData idx
+				LB_Anims.items = LB_Anims.items
+				LB_Anims.selection = LB_Anims_Idx = idx
 			)
-			if anm_paths.count > 0 do (
-				anm_paths[ui_paths.selection][2] = Interval ui_anmrange1.value ui_anmrange2.value
-				animationRange = anm_paths[ui_paths.selection][2]
+		)
+
+		on BTN_MoveDn pressed do (
+			if AnimData.count > 1 do (
+				local idx = LB_Anims_Idx + 1
+				idx = mod idx AnimData.count
+				if idx == 0 do idx = AnimData.count
+				
+				local data = AnimData[LB_Anims_Idx]
+				deleteItem AnimData LB_Anims_Idx
+				deleteItem LB_Anims.items LB_Anims_Idx
+				insertItem ( filenameFromPath data.path ) LB_Anims.items idx
+				insertItem data AnimData idx
+				LB_Anims.items = LB_Anims.items
+				LB_Anims.selection = LB_Anims_Idx = idx
 			)
-			sliderTime = val
 		)
-		on ui_anmrange2 changed val do (
-			ui_anmrange2_v.text = "end time: " + val as string
-			if val <= ui_anmrange1.value do (
-				ui_anmrange1.value = val - 1
-				ui_anmrange1_v.text = "start time: " + ui_anmrange1.value as string
+
+		on LB_Anims selected i do (
+			LB_Anims_Selected i
+		)
+		-- on LB_Anims doubleClicked i do (
+		on BTN_Del pressed do (
+			if AnimData.count == 0 do return false
+
+			local i = LB_Anims.selection
+			deleteItem LB_Anims.items i
+			LB_Anims.items = LB_Anims.items
+			local data = AnimData[1]
+			deleteItem AnimData i
+			if AnimData.count > 0 then (
+				if i > AnimData.count do (
+					LB_Anims.selection = AnimData.count
+				)
+				if LB_Anims.items[LB_Anims.selection] != maxFileName do (
+					loadMaxFileWithZoom AnimData[LB_Anims.selection].path
+				)
+				LB_Anims_Selected LB_Anims.selection
+			) else (
+				if maxFileName == ( filenameFromPath data.path ) do animationRange = data.anmRange
+				LB_Anims_Idx = 0
 			)
-			if anm_paths.count > 0 do (
-				anm_paths[ui_paths.selection][2] = Interval ui_anmrange1.value ui_anmrange2.value
-				animationRange = anm_paths[ui_paths.selection][2]
+		)
+
+		on BTN_DelAll pressed do (
+			if AnimData.count > 0 do (
+				local data = AnimData[LB_Anims.selection]
+				LB_Anims.items = #( )
+				AnimData = #( )
+				LB_Anims_Idx = 0
+				if maxFileName == ( filenameFromPath data.path ) do animationRange = data.anmRange
 			)
-			sliderTime = val
 		)
-		on ui_transition changed val do (
-			ui_transition_v.text = "Transition: " + val as string
+
+		on SL_AnmRangeStart changed val do (
+			LAB_AnmRangeStart.text = "start time: " + val as string
+			if val >= SL_AnmRangeEnd.value do (
+				SL_AnmRangeEnd.value = val + 1
+				LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
+			)
+			if AnimData.count > 0 and LB_Anims.items[LB_Anims_Idx] == maxFileName do (
+				AnimData[LB_Anims.selection].cutRange = Interval SL_AnmRangeStart.value SL_AnmRangeEnd.value
+				animationRange = AnimData[LB_Anims.selection].cutRange
+				sliderTime = val
+			)
 		)
-		on ui_transition rightClick do (
-			ui_transition_v.text = "Transition: 8"
-			ui_transition.value = 8
+		on SL_AnmRangeEnd changed val do (
+			LAB_AnmRangeEnd.text = "end time: " + val as string
+			if val <= SL_AnmRangeStart.value do (
+				SL_AnmRangeStart.value = val - 1
+				LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
+			)
+			if AnimData.count > 0 and LB_Anims.items[LB_Anims_Idx] == maxFileName do (
+				AnimData[LB_Anims.selection].cutRange = Interval SL_AnmRangeStart.value SL_AnmRangeEnd.value
+				animationRange = AnimData[LB_Anims.selection].cutRange
+				sliderTime = val
+			)
 		)
-		on START pressed do (
-			local nAnims = anm_paths.count
+		on SL_Trans changed val do (
+			LAB_Trans.text = "Transition: " + val as string
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].Trans = val
+			)
+		)
+		on SL_Trans rightClick do (
+			LAB_Trans.text = "Transition: " + TransitionDefault as string
+			SL_Trans.value = TransitionDefault
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].Trans = TransitionDefault
+			)
+		)
+
+		on CB_FollowAngle changed state do (
+			SL_AnmAngle.enabled = not state
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].followAngle = state
+			)
+		)
+
+		on SL_AnmAngle changed val do (
+			LAB_AnmAngle.text = "Angle: " + val as string
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].Angle = val
+			)
+		)
+		on SL_AnmAngle rightClick do (
+			LAB_AnmAngle.text = "Angle: 0"
+			SL_AnmAngle.value = 0
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].Angle = 0
+			)
+		)
+
+		on CB_F_Offset changed state do (
+			SP_R_Offset.enabled = not state
+			SP_F_Offset.enabled = not state
+			SP_U_Offset.enabled = not state
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].autoOffset = state
+			)
+		)
+
+		on SP_F_Offset changed val do (
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].FrontOffset = val
+			)
+		)
+
+		on SP_U_Offset changed val do (
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].UpOffset = val
+			)
+		)
+
+		on SP_R_Offset changed val do (
+			-- if val == "" do return false
+			-- val = ( substring val 1 5 ) as integer
+			-- if val == undefined do val = 0
+			-- SP_R_Offset.text = val as string
+			
+			if AnimData.count > 0 do (
+				AnimData[LB_Anims.selection].RightOffset = val
+			)
+		)
+
+		-- on SL_FB_Offset changed val do (
+		-- 	LAB_FB_Offset.text = "FB Offset: " + val as string
+		-- 	if AnimData.count > 0 do (
+		-- 		AnimData[LB_Anims.selection].FrontOffset = val
+		-- 	)
+		-- )
+
+		on BTN_Start pressed do (
+			local nAnims = AnimData.count
 			if nAnims > 0 do (
 				-- 从第二个起获取剩余动画的范围
-				for i = 2 to nAnims do (
-					local path = anm_paths[i]
-					if path[2] == undefined do (
-						loadMAXFile path[1]
-						path[2] = animationRange
-					)
-				)
+				-- for i = 2 to nAnims do (
+				-- 	local path = AnimData[i]
+				-- 	if path[2] == undefined do (
+				-- 		loadMAXFile path[1]
+				-- 		path[2] = animationRange
+				-- 	)
+				-- )
 
-				local path = anm_paths[1]
-				loadMAXFile path[1]
+				local data = AnimData[1]
+				loadMAXFile data.path
 				-- 判断组
 				if not isKindOf objects[1] Dummy do (
 					group objects name:( "Blade_AnimRoot_" + readChars ( maxFileName as stringStream ) 4 + "g_MergeAnm" )
 				)
 				selectionSets["anm1"] = ( execute ( "$" + objects[2].name + "...*" ) )
-				local anm1_set = selectionSets["anm1"]
-				local nNodes = anm1_set.count
+				local AnmSet1 = selectionSets["anm1"]
+				local nNodes = AnmSet1.count
+				local anmName1 = for i in AnmSet1 collect i.name
 
 				-- 切割主动画
-				local start, end, start_, end_
-				start_ = animationRange.start
-				end_ = animationRange.end
-				if path[2] != undefined then (
-					start = path[2].start
-					end = path[2].end
-				) else (
-					start = start_
-					end = end_
+				local anmRange, cutRange
+				anmRange = animationRange
+				cutRange = data.cutRange
+
+				if ( anmRange.start != cutRange.start ) or ( anmRange.end != cutRange.end ) do (
+					deleteTime selectionSets["anm1"] cutRange.end anmRange.end #incRight
+					deleteTime selectionSets["anm1"] anmRange.start cutRange.start #incLeft
+					-- deleteTime selectionSets["anm1"] end ( getTimeRange selectionSets["anm1"][1].pos.controller ).end #incRight
+					-- deleteTime selectionSets["anm1"] 0 start #incLeft
+					animationRange = anmRange = Interval 0 ( cutRange.end - cutRange.start )
 				)
-				deleteTime selectionSets["anm1"] end ( getTimeRange selectionSets["anm1"][1].pos.controller ).end #incRight
-				deleteTime selectionSets["anm1"] 0 start #incLeft
-				animationRange = Interval 0 ( end - start )
 				
 				hide selectionSets["anm1"]
 				local show_process = false
 				-- 开始循环处理
 				for i = 2 to nAnims do (
-					local path = anm_paths[i]
+					local data = AnimData[i]
 
 					-- 判断骨架是否匹配
-					mergeMAXFile path[1] #select #skipDups
-					if selection.count > 0 do (
-						format "Node Mismatch: %\n" ( filenameFromPath path[1] )
-						delete $
-						continue
-					)
-					mergeMAXFile path[1] #select #mergeDups
+					-- mergeMAXFile data.path #select #skipDups
+					-- if selection.count > 0 do (
+					-- 	format "Node Mismatch: %\n" ( filenameFromPath data.path )
+					-- 	delete $
+					-- 	continue
+					-- )
+					mergeMAXFile data.path #select #mergeDups
+					if isKindOf selection[1] Dummy do ungroup selection[1]
 					if selection.count != nNodes do (
-						format "Node Mismatch: %\n" ( filenameFromPath path[1] )
+						format "Node Mismatch: %\n" ( filenameFromPath data.path )
 						delete $
 						continue
 					)
-					selectionSets["anm2"] = selection
-					local anm2_set = selectionSets["anm2"]
-					hide selection
-					clearSelection()
-
-					local start_frame = animationRange.end + ui_transition.value
-					local anm_len = path[2].end - path[2].start + 1f
-					-- 增加动画范围
-					animationRange = interval animationRange.start ( start_frame + anm_len )
-
-					-- 纠正次动画位置及方向
-					at time start_frame (
-						local pos = anm1_set[1].pos
-						local ang = anm1_set[1].transform.rotationPart as eulerangles
-						for i in execute ( "$" + anm1_set[1].parent.name + "...*_Foot" ) do (
-							if i.pos.y < pos.y do pos.y = i.pos.y
+					for i = 1 to nNodes do (
+						if ( findItem anmName1 selection[i].name ) == 0 do (
+							delete $
+							exit
 						)
 					)
-					local end_tmp = animationRange.end
-					if path[2].start > animationRange.end do (
-						animationRange = interval animationRange.start path[2].start
+					if selection.count == 0 do (
+						format "Node Mismatch: %\n" ( filenameFromPath data.path )
+						continue
 					)
-					sliderTime = path[2].start
-					if follow_angle.checked do (
-						local tmp = anm2_set[1].transform.rotationPart as eulerangles
-						tmp.z = ang.z
-						anm2_set[1].rotation = inverse ( tmp as quat )
+
+					selectionSets["anm2"] = selection
+					local AnmSet2 = selectionSets["anm2"]
+					hide selection
+					clearSelection()
+					local anmName2 = for i in AnmSet2 collect i.name
+
+					local end_frame = animationRange.end + data.Trans
+					local anm_len = data.cutRange.end - data.cutRange.start + 1f
+					-- 增加动画范围
+					animationRange = interval animationRange.start ( end_frame + anm_len )
+
+					-- 纠正次动画位置及方向
+					local center_pos1
+					local center_pos2
+					local FrontOffset = 0
+					local AutoOffset = [0, 0, 0]
+					local vector1 = [0, -1, 0]
+					at time end_frame (
+						center_pos1 = AnmSet1[1].pos
+						local idx = findItem anmName1 "Head"
+						if idx != 0 do (
+							-- local head_pos = AnmSet1[idx].pos
+							local box1 = Box()
+							hide box1
+							in coordsys AnmSet1[idx] box1.pos = [-0.367666, 0, 0.929958]
+							vector1 = normalize ( box1.pos - AnmSet1[idx].pos )
+							vector1.z = 0
+							delete box1
+						)
+						-- local ang = AnmSet1[1].transform.rotationPart as eulerangles
+						if data.autoOffset then (
+							for i in #( "L_Foot", "R_Foot" ) do (
+								local idx = findItem anmName1 i
+								if idx != 0 do (
+									local offset = in coordsys AnmSet1[1] AnmSet1[idx].pos.z
+									if offset > FrontOffset do FrontOffset = offset
+								)
+							)
+							if FrontOffset != 0 do (
+								local box1 = Box()
+								hide box1
+								in coordsys AnmSet1[1] box1.pos = [0, 0, FrontOffset]
+								AutoOffset = box1.pos - AnmSet1[1].pos
+								AutoOffset.z = 0
+								delete box1
+							)
+							-- for i in execute ( "$" + AnmSet1[1].parent.name + "...*_Foot" ) do (
+							-- 	local offset = in coordsys AnmSet1[1] i.pos.z
+							-- 	if offset > FrontOffset do FrontOffset = offset
+							-- )
+						) else (
+							FrontOffset = data.FrontOffset * 10.0
+						)
+						-- if data.Trans != 0 do (
+						-- 	for i in execute ( "$" + AnmSet1[1].parent.name + "...*_Foot" ) do (
+						-- 		if i.pos.y < pos.y do pos.y = i.pos.y
+						-- 	)
+						-- )
 					)
-					anm2_set[1].pos = [pos.x, pos.y, anm2_set[1].pos.z]
-					animationRange = interval animationRange.start end_tmp
+					local vector2 = [0, -1, 0]
+					local rotate_arr = #( 0, [0, 0, 1] )
+					at time data.cutRange.start (
+						if data.followAngle then (
+							local idx = findItem anmName2 "Head"
+							if idx != 0 do (
+								-- local head_pos = AnmSet1[idx].pos
+								local box1 = Box()
+								hide box1
+								in coordsys AnmSet2[idx] box1.pos = [-0.367666, 0, 0.929958]
+								vector2 = normalize ( box1.pos - AnmSet2[idx].pos )
+								vector2.z = 0
+								delete box1
+							)
+							if vector1 != vector2 do (
+								rotate_arr[1] = acos ( dot vector1 vector2 )
+								rotate_arr[2] = normalize ( cross vector2 vector1 )
+							)
+						) else (
+							rotate_arr[1] = data.Angle
+						)
+
+						if rotate_arr[1] != 0 do (
+							Rotate AnmSet2[1] rotate_arr[1] rotate_arr[2]
+						)
+						if data.autoOffset then (
+							AnmSet2[1].pos = center_pos1 + AutoOffset
+						) else (
+							AnmSet2[1].pos = center_pos1 + [data.RightOffset * 10.0, FrontOffset, data.UpOffset * 10.0]
+						)
+						-- in coordsys local AnmSet2[1].pos = [- data.RightOffset * 10.0, data.UpOffset * 10.0, FrontOffset]
+						center_pos2 = AnmSet2[1].pos
+					)
+					-- local end_tmp = animationRange.end
+					-- if data.cutRange.start > animationRange.end do (
+					-- 	animationRange = interval animationRange.start data.cutRange.start
+					-- )
+					-- sliderTime = data.cutRange.start
+					-- sliderTime = 0f
+					-- at time ( data.cutRange.start ) (
+					-- 	if SL_Trans.value != 0 then (
+					-- 		local anm2pos = [pos.x, pos.y, AnmSet2[1].pos.z]
+					-- 	) else (
+					-- 		local anm2pos = pos
+					-- 	)
+					-- 	if CB_FollowAngle.checked do (
+					-- 		local tmp = AnmSet2[1].transform.rotationPart as eulerangles
+					-- 		tmp.z = ang.z
+					-- 		AnmSet2[1].rotation = inverse ( tmp as quat )
+					-- 	)
+					-- )
 					
-					if show_process do sliderTime = start_frame
-					max vpt left
-					max zoomext sel all
-					max izoom out
+					-- AnmSet2[1].pos = anm2pos
+					-- animationRange = interval animationRange.start end_tmp
+					
+					if show_process do (
+						sliderTime = end_frame
+						max vpt left
+						max zoomext sel all
+						max izoom out
+					)
 					-- 复制关键帧
 					for i = 1 to anm_len do (
 						for n = 1 to nNodes do (
-							at time ( path[2].start + i - 1 ) local matrix = anm2_set[n].transform
+							at time ( data.cutRange.start + i - 1 ) local matrix = AnmSet2[n].transform
 							animate on (
-								at time ( start_frame + i ) (
-									-- local angle_axis = anm1_set[n].rotation as AngleAxis
+								at time ( end_frame + i ) (
+									-- local angle_axis = AnmSet1[n].rotation as AngleAxis
 									-- angle_axis.angle *= -1
-									-- rotate anm1_set[n] angle_axis
-									-- rotate anm1_set[n] ang
-									-- if n == 1 do anm1_set[n].pos = matrix.row4
-									if n != 1 do matrix.row4 = anm1_set[n].transform.row4
-									anm1_set[n].transform = matrix
+									-- rotate AnmSet1[n] angle_axis
+									-- rotate AnmSet1[n] ang
+									-- if n == 1 do AnmSet1[n].pos = matrix.row4
+									if n != 1 then (
+										matrix.row4 = AnmSet1[n].transform.row4
+									) else (
+										if rotate_arr[1] != 0 do (
+											local tmp_mat = transMatrix ( matrix.row4 - center_pos2 )
+											rot_mat = ( AngleAxis ( - rotate_arr[1] ) rotate_arr[2] ) as Matrix3
+											rot_mat.row4 = center_pos2
+											matrix.row4 = ( tmp_mat * rot_mat ).row4
+										)
+									)
+									AnmSet1[n].transform = matrix
 								)
 							)
 						)
-						-- if i != 1 do deleteKeys anm1_set[i].controller[1] #allKeys
-						-- local ctrller1 = anm1_set[i].controller
-						-- local ctrller2 = anm2_set[i].controller
+						-- if i != 1 do deleteKeys AnmSet1[i].controller[1] #allKeys
+						-- local ctrller1 = AnmSet1[i].controller
+						-- local ctrller2 = AnmSet2[i].controller
 						-- local nKeys = ctrller1[2].keys.count
 						-- for key in ctrller2[2].keys do (
-						-- 	addNewKey ctrller1[2] ( key.time + start_frame + 1f )
+						-- 	addNewKey ctrller1[2] ( key.time + end_frame + 1f )
 						-- 	ctrller1[2].keys[nKeys + 1].value = key.value
 						-- )
 						if show_process do (
-							sliderTime = start_frame + i
+							sliderTime = end_frame + i
 							sleep ( 0.01 )
 						)
 					)
 
 					-- 清除次动画
-					delete anm2_set
+					delete AnmSet2
 					deleteItem selectionSets "anm2"
 				)
 				-- 清除多余关键帧
-				for n = 1 to nNodes do (
-					deleteKeys anm1_set[n].scale.controller
-					if n != 1 do (
-						deleteKeys anm1_set[n].pos.controller
+				if nAnims > 1 do (
+					for n = 1 to nNodes do (
+						deleteKeys AnmSet1[n].scale.controller
+						if n != 1 do (
+							deleteKeys AnmSet1[n].pos.controller
+						)
 					)
 				)
 				-- 清理工作
 				unhide selectionSets["anm1"]
 				deleteItem selectionSets "anm1"
 				-- init()
-				-- ui_paths.items = anm_paths = #( )
+				-- LB_Anims.items = AnimData = #( )
+				max vpt left
+				max zoomext sel all
+				max izoom out
+				max izoom out
 			)
+		)
+
+		on AnimationSplice rolledUp state do (
+			if state do init()
 		)
 	)
 
 
 	-- 动画反转
 	rollout AnimationReverse "Animation Reverse" (
-		button ui_Reverse "Reverse" width:60 height:20
+		button ui_Reverse "Reverse" width:60 -- height:20
 
 		fn std_ui_Reverse = (
+			if objects.count == 0 do return false
+
 			local Nodes = #( )
-			for obj in $* do (
-				if not isKindOf obj Dummy do (
-					append Nodes obj
-				)
+			if isKindOf objects[1] Dummy then (
+				Nodes = execute ( "$" + objects[2].name + "...*" )
+			) else (
+				Nodes = execute ( "$" + objects[1].name + "...*" )
 			)
+			Nodes = Nodes as array
 			if Nodes.count == 0 do return false
 
-			local len = ( getTimeRange Nodes[1].pos.controller ).end + 1
-			moveKeys $* len
+			-- local len = ( getTimeRange Nodes[1].controller #children ).end + 1
+			local len = animationRange.end + 1f
+			moveKeys Nodes len
 
 			local pos = Nodes[1].pos
 			local end = len * 2 - 1
@@ -474,23 +817,31 @@ utility AstraTools "Astra Tools" (
 
 	-- 导入 & 导出
 	rollout IMPEXP "Import & Export" (
-		button IMP_BOD "Import BOD" width:142 enabled:false
-		button EXP_BOD "Export BOD" width:142 enabled:HAS_DOUBLE
-		button EXP_BOD_AS "Export BOD As..." width:142 enabled:HAS_DOUBLE
+		button btn_impbod "Import BOD" width:142 enabled:false
+		button btn_expbod "Export BOD" width:142 enabled:HAS_DOUBLE
+		button btn_expbod_as "Export BOD As..." width:142 enabled:HAS_DOUBLE
 		
 		label blank1 ""
-		button IMP_BMV "Import BMV" width:142 enabled:false
-		button EXP_BMV "Export BMV" width:142 enabled:false
+		button btn_impbmv "Import BMV" width:142 enabled:false
+		button btn_expbmv "Export BMV" width:142 enabled:false
+		button btn_expbmv_as "Export BMV As..." width:142 enabled:false
 		label ccLab1 ""
-		label ccLab2 ""
+		label ccLab2 "" 
 		
-		on EXP_BOD pressed do (
-			filein "AstraTools/bldexp_plus.ms"
-			execute "STD_EXP_BOD()"
+		on btn_expbod pressed do (
+			-- filein "AstraTools/bldexp_plus.ms"
+			execute "AstraToolsLib.ExportBOD.Start()"
 		)
-		on EXP_BOD_AS pressed do (
-			filein "AstraTools/bldexp_plus.ms"
-			execute "STD_EXP_BOD custom:true"
+		on btn_expbod_as pressed do (
+			-- filein "AstraTools/bldexp_plus.ms"
+			-- execute "Start custom:true"
+			execute "AstraToolsLib.ExportBOD.Start custom:true"
+		)
+		on btn_expbmv pressed do (
+			execute "AstraToolsLib.ExportBMV.Start()"
+		)
+		on btn_expbmv_as pressed do (
+			execute "AstraToolsLib.ExportBMV.Start custom:true"
 		)
 	)
 
@@ -507,13 +858,14 @@ utility AstraTools "Astra Tools" (
 		addrollout AboutScript main_win
 		addrollout TransformScale main_win rolledup:true
 		addrollout AnimationSplice main_win rolledup:true
-		AnimationSplice.init()
 		addrollout AnimationReverse main_win rolledup:true
 
 		addrollout IMPEXP main_win rolledup:( not HAS_DOUBLE )
-		if not HAS_DOUBLE do (
+		if not HAS_DOUBLE then (
 			IMPEXP.ccLab1.text = "A higher version is required"
 			IMPEXP.ccLab2.text = "to use these features!"
+		) else (
+			filein "AstraTools/AstraLib.ms"
 		)
 	)
 	on main_close pressed do (
@@ -531,5 +883,5 @@ utility AstraTools "Astra Tools" (
 
 openUtility AstraTools
 if isProperty != undefined then (
-	if (isProperty AstraTools "open") then AstraTools.open = false
+	if ( isProperty AstraTools "open" ) then AstraTools.open = false
 )
