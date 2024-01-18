@@ -177,7 +177,6 @@ utility AstraTools "Astra Tools" (
 
 	-- 动画切割/拼接
 	rollout AnimationSplice "Animation Cut/Splice" (
-		local CB_F_OffsetDefault = true
 		local TransitionDefault = 8
 		-- button BTN_Open "Add AnmMax File" width:145 tooltip:"Double click in the list to delete the item."
 		button BTN_Open "Open" across:2 width:85 align:#center
@@ -202,11 +201,12 @@ utility AstraTools "Astra Tools" (
 		slider SL_AnmAngle "" orient:#horizontal type:#integer range:[-180, 180, 0] enabled: true
 
 		-- label LAB_FB_Offset "FB Offset: 0" align:#left across:2
-		checkbox CB_F_Offset "Auto Offset" checked:CB_F_OffsetDefault
+		dropdownlist DDL_FollowNode "Follow Node:" items:#( "None" )
+		-- checkbox CB_F_Offset "Auto Offset" checked:CB_F_OffsetDefault
 		label LAB_R_Offset "X Offset:" align:#left across:2
 		spinner SP_R_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
 		label LAB_F_Offset "Y Offset:" align:#left across:2
-		spinner SP_F_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left enabled:( not CB_F_OffsetDefault )
+		spinner SP_F_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left enabled:true
 		label LAB_U_Offset "Z Offset:" align:#left across:2
 		spinner SP_U_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
 		
@@ -224,7 +224,8 @@ utility AstraTools "Astra Tools" (
 			Trans = TransitionDefault,
 			Angle = 0,
 			followAngle = false,
-			autoOffset = CB_F_OffsetDefault,
+			Nodes = #( ),
+			followNode = 1,
 			FrontOffset = 0,
 			UpOffset = 0,
 			RightOffset = 0
@@ -232,6 +233,26 @@ utility AstraTools "Astra Tools" (
 
 		local AnimData = #( )
 		local LB_Anims_Idx = 0
+
+		fn compareFN v1 v2 = (
+			if findString v1 "Center" != undefined then v1 = -1
+			else if findString v1 "Foot" != undefined then v1 = 0
+			else v1 = 1
+			if findString v2 "Center" != undefined then v2 = -1
+			else if findString v2 "Foot" != undefined then v2 = 0
+			else v2 = 1
+			
+			if v1 < v2 then return -1
+			else if v1 == v2 then return 0
+			else return 1
+		)
+
+		fn getFollowNodes = (
+			local nodes = for i in $* where ClassOf i != Dummy collect i.Name
+			qsort nodes compareFN
+			insertItem "None" nodes 1
+			return nodes
+		)
 
 		fn updateUI i = (
 			local anmRange, cutRange
@@ -253,10 +274,14 @@ utility AstraTools "Astra Tools" (
 			SL_AnmAngle.value = data.Angle
 			LAB_AnmAngle.text = "Angle: " + data.Angle as string
 			
-			CB_F_Offset.checked = data.autoOffset
-			SP_R_Offset.enabled = not data.autoOffset
-			SP_F_Offset.enabled = not data.autoOffset
-			SP_U_Offset.enabled = not data.autoOffset
+			-- CB_F_Offset.checked = data.autoOffset
+			DDL_FollowNode.items = data.Nodes
+			DDL_FollowNode.selection = data.followNode
+			local state = true
+			if data.followNode != 1 do state = false
+			SP_R_Offset.enabled = state
+			SP_F_Offset.enabled = state
+			SP_U_Offset.enabled = state
 			SP_F_Offset.value = data.FrontOffset
 			SP_U_Offset.value = data.UpOffset
 			SP_R_Offset.value = data.RightOffset
@@ -271,7 +296,7 @@ utility AstraTools "Astra Tools" (
 				if nAnms == 0 or ( nAnms == 1 and LB_Anims.items[1] != maxFileName ) do (
 					LB_Anims.items = #( maxFileName )
 					-- AnimData = #( #( maxFilePath + maxFileName, animationRange, animationRange ) )
-					AnimData = #( AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange )
+					AnimData = #( AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange Nodes:( getFollowNodes()) )
 					LB_Anims.selection = LB_Anims_Idx = 1
 					-- if from_select do loadMaxFile AnimData[1].path
 					-- LB_Anims_Selected AnimData[1] init:true
@@ -318,7 +343,7 @@ utility AstraTools "Astra Tools" (
 				-- update listbox
 				LB_Anims.items = LB_Anims.items
 				LB_Anims.selection = LB_Anims_Idx = LB_Anims.items.count
-				append AnimData ( AnimStruct f animationRange animationRange )
+				append AnimData ( AnimStruct f animationRange animationRange Nodes:( getFollowNodes()) )
 				updateUI LB_Anims.selection
 				-- LB_Anims_Selected LB_Anims.selection
 			)
@@ -332,11 +357,15 @@ utility AstraTools "Astra Tools" (
 					insertItem maxFileName LB_Anims.items ( LB_Anims_Idx + 1 )
 					LB_Anims.items = LB_Anims.items
 					local data = AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange
-					if LB_Anims.items[LB_Anims_Idx] == maxFileName do (
+					if LB_Anims.selected == maxFileName then (
 						data.cutRange = data.anmRange = AnimData[LB_Anims_Idx].anmRange
+						data.Nodes = AnimData[LB_Anims_Idx].Nodes
+					) else (
+						data.Nodes = getFollowNodes()
 					)
-					insertItem data AnimData ( LB_Anims_Idx + 1 )
-					LB_Anims.selection = LB_Anims_Idx = LB_Anims_Idx + 1
+					LB_Anims_Idx = LB_Anims_Idx + 1
+					insertItem data AnimData LB_Anims_Idx
+					LB_Anims.selection = LB_Anims_Idx
 					LB_Anims_Selected LB_Anims.selection
 				)
 			)
@@ -390,7 +419,7 @@ utility AstraTools "Astra Tools" (
 				if i > AnimData.count do (
 					LB_Anims.selection = AnimData.count
 				)
-				if LB_Anims.items[LB_Anims.selection] != maxFileName do (
+				if LB_Anims.selected != maxFileName do (
 					loadMaxFileWithZoom AnimData[LB_Anims.selection].path
 				)
 				LB_Anims_Selected LB_Anims.selection
@@ -416,7 +445,7 @@ utility AstraTools "Astra Tools" (
 				SL_AnmRangeEnd.value = val + 1
 				LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
 			)
-			if AnimData.count > 0 and LB_Anims.items[LB_Anims_Idx] == maxFileName do (
+			if AnimData.count > 0 and LB_Anims.selected == maxFileName do (
 				AnimData[LB_Anims.selection].cutRange = Interval SL_AnmRangeStart.value SL_AnmRangeEnd.value
 				animationRange = AnimData[LB_Anims.selection].cutRange
 				sliderTime = val
@@ -428,7 +457,7 @@ utility AstraTools "Astra Tools" (
 				SL_AnmRangeStart.value = val - 1
 				LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
 			)
-			if AnimData.count > 0 and LB_Anims.items[LB_Anims_Idx] == maxFileName do (
+			if AnimData.count > 0 and LB_Anims.selected == maxFileName do (
 				AnimData[LB_Anims.selection].cutRange = Interval SL_AnmRangeStart.value SL_AnmRangeEnd.value
 				animationRange = AnimData[LB_Anims.selection].cutRange
 				sliderTime = val
@@ -469,12 +498,22 @@ utility AstraTools "Astra Tools" (
 			)
 		)
 
-		on CB_F_Offset changed state do (
-			SP_R_Offset.enabled = not state
-			SP_F_Offset.enabled = not state
-			SP_U_Offset.enabled = not state
+		-- on CB_F_Offset changed state do (
+		-- 	SP_R_Offset.enabled = not state
+		-- 	SP_F_Offset.enabled = not state
+		-- 	SP_U_Offset.enabled = not state
+		-- 	if AnimData.count > 0 do (
+		-- 		AnimData[LB_Anims.selection].autoOffset = state
+		-- 	)
+		-- )
+		on DDL_FollowNode selected i do (
+			local state = true
+			if i != 1 do state = false
+			SP_R_Offset.enabled = state
+			SP_F_Offset.enabled = state
+			SP_U_Offset.enabled = state
 			if AnimData.count > 0 do (
-				AnimData[LB_Anims.selection].autoOffset = state
+				AnimData[LB_Anims.selection].followNode = i
 			)
 		)
 
@@ -511,15 +550,6 @@ utility AstraTools "Astra Tools" (
 		on BTN_Start pressed do (
 			local nAnims = AnimData.count
 			if nAnims > 0 do (
-				-- 从第二个起获取剩余动画的范围
-				-- for i = 2 to nAnims do (
-				-- 	local path = AnimData[i]
-				-- 	if path[2] == undefined do (
-				-- 		loadMAXFile path[1]
-				-- 		path[2] = animationRange
-				-- 	)
-				-- )
-
 				local data = AnimData[1]
 				loadMAXFile data.path
 				-- 判断组
@@ -539,8 +569,6 @@ utility AstraTools "Astra Tools" (
 				if ( anmRange.start != cutRange.start ) or ( anmRange.end != cutRange.end ) do (
 					deleteTime selectionSets["anm1"] cutRange.end anmRange.end #incRight
 					deleteTime selectionSets["anm1"] anmRange.start cutRange.start #incLeft
-					-- deleteTime selectionSets["anm1"] end ( getTimeRange selectionSets["anm1"][1].pos.controller ).end #incRight
-					-- deleteTime selectionSets["anm1"] 0 start #incLeft
 					animationRange = anmRange = Interval 0 ( cutRange.end - cutRange.start )
 				)
 				
@@ -551,12 +579,6 @@ utility AstraTools "Astra Tools" (
 					local data = AnimData[i]
 
 					-- 判断骨架是否匹配
-					-- mergeMAXFile data.path #select #skipDups
-					-- if selection.count > 0 do (
-					-- 	format "Node Mismatch: %\n" ( filenameFromPath data.path )
-					-- 	delete $
-					-- 	continue
-					-- )
 					mergeMAXFile data.path #select #mergeDups
 					if isKindOf selection[1] Dummy do ungroup selection[1]
 					if selection.count != nNodes do (
@@ -589,8 +611,7 @@ utility AstraTools "Astra Tools" (
 					-- 纠正次动画位置及方向
 					local center_pos1
 					local center_pos2
-					local FrontOffset = 0
-					local AutoOffset = [0, 0, 0]
+					local followNode_pos
 					local vector1 = [0, -1, 0]
 					at time end_frame (
 						center_pos1 = AnmSet1[1].pos
@@ -604,35 +625,21 @@ utility AstraTools "Astra Tools" (
 							vector1.z = 0
 							delete box1
 						)
-						-- local ang = AnmSet1[1].transform.rotationPart as eulerangles
-						if data.autoOffset then (
-							for i in #( "L_Foot", "R_Foot" ) do (
-								local idx = findItem anmName1 i
-								if idx != 0 do (
-									local offset = in coordsys AnmSet1[1] AnmSet1[idx].pos.z
-									if offset > FrontOffset do FrontOffset = offset
-								)
-							)
-							if FrontOffset != 0 do (
-								local box1 = Box()
-								hide box1
-								in coordsys AnmSet1[1] box1.pos = [0, 0, FrontOffset]
-								AutoOffset = box1.pos - AnmSet1[1].pos
-								AutoOffset.z = 0
-								delete box1
-							)
-							-- for i in execute ( "$" + AnmSet1[1].parent.name + "...*_Foot" ) do (
-							-- 	local offset = in coordsys AnmSet1[1] i.pos.z
-							-- 	if offset > FrontOffset do FrontOffset = offset
+						if data.followNode != 1 do (
+							local idx = findItem anmName1 data.Nodes[data.followNode]
+							followNode_pos = AnmSet1[idx].pos
+							-- local offset = in coordsys AnmSet1[1] AnmSet1[idx].pos.z
+							-- if offset > FrontOffset do FrontOffset = offset
+							-- if FrontOffset != 0 do (
+							-- 	local box1 = Box()
+							-- 	hide box1
+							-- 	in coordsys AnmSet1[1] box1.pos = [0, 0, FrontOffset]
+							-- 	AutoOffset = box1.pos - AnmSet1[1].pos
+							-- 	AutoOffset.z = 0
+							-- 	delete box1
 							-- )
-						) else (
-							FrontOffset = data.FrontOffset * 10.0
+							
 						)
-						-- if data.Trans != 0 do (
-						-- 	for i in execute ( "$" + AnmSet1[1].parent.name + "...*_Foot" ) do (
-						-- 		if i.pos.y < pos.y do pos.y = i.pos.y
-						-- 	)
-						-- )
 					)
 					local vector2 = [0, -1, 0]
 					local rotate_arr = #( 0, [0, 0, 1] )
@@ -659,36 +666,17 @@ utility AstraTools "Astra Tools" (
 						if rotate_arr[1] != 0 do (
 							Rotate AnmSet2[1] rotate_arr[1] rotate_arr[2]
 						)
-						if data.autoOffset then (
-							AnmSet2[1].pos = center_pos1 + AutoOffset
+						AnmSet2[1].pos = [center_pos1.x, center_pos1.y, AnmSet2[1].pos.z]
+						if data.followNode != 1 then (
+							local idx = findItem anmName2 data.Nodes[data.followNode]
+							move AnmSet2[1] ( followNode_pos - AnmSet2[idx].pos )
 						) else (
-							AnmSet2[1].pos = center_pos1 + [data.RightOffset * 10.0, FrontOffset, data.UpOffset * 10.0]
+							move AnmSet2[1] [data.RightOffset * 10.0, data.FrontOffset * 10.0, data.UpOffset * 10.0]
 						)
 						-- in coordsys local AnmSet2[1].pos = [- data.RightOffset * 10.0, data.UpOffset * 10.0, FrontOffset]
 						center_pos2 = AnmSet2[1].pos
 					)
-					-- local end_tmp = animationRange.end
-					-- if data.cutRange.start > animationRange.end do (
-					-- 	animationRange = interval animationRange.start data.cutRange.start
-					-- )
-					-- sliderTime = data.cutRange.start
-					-- sliderTime = 0f
-					-- at time ( data.cutRange.start ) (
-					-- 	if SL_Trans.value != 0 then (
-					-- 		local anm2pos = [pos.x, pos.y, AnmSet2[1].pos.z]
-					-- 	) else (
-					-- 		local anm2pos = pos
-					-- 	)
-					-- 	if CB_FollowAngle.checked do (
-					-- 		local tmp = AnmSet2[1].transform.rotationPart as eulerangles
-					-- 		tmp.z = ang.z
-					-- 		AnmSet2[1].rotation = inverse ( tmp as quat )
-					-- 	)
-					-- )
-					
-					-- AnmSet2[1].pos = anm2pos
-					-- animationRange = interval animationRange.start end_tmp
-					
+					--
 					if show_process do (
 						sliderTime = end_frame
 						max vpt left
@@ -698,14 +686,11 @@ utility AstraTools "Astra Tools" (
 					-- 复制关键帧
 					for i = 1 to anm_len do (
 						for n = 1 to nNodes do (
-							at time ( data.cutRange.start + i - 1 ) local matrix = AnmSet2[n].transform
+							at time ( data.cutRange.start + i - 1 ) (
+								local matrix = AnmSet2[n].transform
+							)
 							animate on (
 								at time ( end_frame + i ) (
-									-- local angle_axis = AnmSet1[n].rotation as AngleAxis
-									-- angle_axis.angle *= -1
-									-- rotate AnmSet1[n] angle_axis
-									-- rotate AnmSet1[n] ang
-									-- if n == 1 do AnmSet1[n].pos = matrix.row4
 									if n != 1 then (
 										matrix.row4 = AnmSet1[n].transform.row4
 									) else (
