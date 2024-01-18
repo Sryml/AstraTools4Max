@@ -56,19 +56,19 @@ utility AstraTools "Astra Tools" (
 	-- 变换人物大小
 	rollout TransformScale "Character Scale" (
 		button select_group "Select A Group" width:140 toolTip:"Group of Blade_Object_..." --height:20
-		
+
 		spinner spread "Scale:" range:[0.01, 1000, 1] type:#float scale:0.25 fieldwidth:50 align:#center offset:[0, 20]
 		button apply_scale "Apply" width:55 -- height:20
-		
+
 		-- button GetPos "GetPos" align:#center across:2 offset:[0,20]
 		-- button SetPos "SetPos" align:#center offset:[0,20]
-		
+
 		--
 		local mainScaleGroup = undefined
 		local originalScale = #( )
-		
+
 		--
-		
+
 		fn existsObject obj flag:0 =
 		(
 			-- try
@@ -82,8 +82,8 @@ utility AstraTools "Astra Tools" (
 			)
 			return True
 		)
-		
-		fn changeScale = 
+
+		fn changeScale =
 		(
 			local val = undefined
 			if existsObject mainScaleGroup flag:1 do
@@ -96,13 +96,13 @@ utility AstraTools "Astra Tools" (
 			)
 			return false
 		)
-		
+
 		--
 		on select_group pressed do --picked
 		(
 			local obj
 			obj = selectByName title:"Pick Object" buttonText:"Pick" filter:BldObj_filt single:True
-			
+
 			if obj != undefined then
 			(
 				-- obj.wirecolor = red
@@ -121,25 +121,25 @@ utility AstraTools "Astra Tools" (
 				mainScaleGroup = undefined
 			)
 		)
-		
+
 		on spread changed val do (
 			changeScale()
 		)
-		
+
 		on apply_scale pressed do (
 			if changeScale() do
 			(
 				-- local obj_array   = #(#())
 				local pos_array = #( )
 				local xform_array = #( )
-				
+
 				-- select mainScaleGroup
 				-- max group close
 				-- mainScaleGroup.scale = [1,1,1] * spread.value
 				sklGroup = execute ( "$" + mainScaleGroup.Name + "/Blade_Skeleton" )
-				if sklGroup != undefined then 
+				if sklGroup != undefined then
 				(
-					for i in sklGroup where classof i != dummy do 
+					for i in sklGroup where classof i != dummy do
 					(
 						-- append obj_array[1] #(i,i.pos,i.parent)
 						append pos_array #( i, i.pos )
@@ -150,14 +150,14 @@ utility AstraTools "Astra Tools" (
 						)
 					)
 					-- for i in mainScaleGroup where i.Name != "Blade_Skeleton" do append obj_array i
-					
+
 					sklGroup.scale = originalScale[2]
-					
+
 					for i in xform_array do
 					(
 						i.xform.Gizmo.scale = [1, 1, 1] * spread.value
 					)
-					
+
 					for i in pos_array do
 					(
 						i[1].pos = i[2]
@@ -171,7 +171,7 @@ utility AstraTools "Astra Tools" (
 				)
 			)
 		)
-		
+
 	)
 
 
@@ -207,7 +207,7 @@ utility AstraTools "Astra Tools" (
 		spinner SP_F_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left enabled:true
 		label LAB_U_Offset "Z Offset:" align:#left across:2
 		spinner SP_U_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
-		
+
 		-- label blank ""
 		button BTN_Start "START" width:55 -- height:20
 
@@ -235,7 +235,7 @@ utility AstraTools "Astra Tools" (
 			if findString v2 "Center" != undefined then v2 = -1
 			else if findString v2 "Foot" != undefined then v2 = 0
 			else v2 = 1
-			
+
 			if v1 < v2 then return -1
 			else if v1 == v2 then return 0
 			else return 1
@@ -259,7 +259,7 @@ utility AstraTools "Astra Tools" (
 			SL_AnmRangeEnd.value = cutRange.end
 			LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
 			LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
-			
+
 			SL_Trans.value = data.Trans
 			LAB_Trans.text = "Transition: " + data.Trans as string
 
@@ -267,7 +267,7 @@ utility AstraTools "Astra Tools" (
 			SL_AnmAngle.enabled = not data.followAngle
 			SL_AnmAngle.value = data.Angle
 			LAB_AnmAngle.text = "Angle: " + data.Angle as string
-			
+
 			-- CB_F_Offset.checked = data.autoOffset
 			DDL_FollowNode.items = data.Nodes
 			DDL_FollowNode.selection = data.followNode
@@ -373,7 +373,7 @@ utility AstraTools "Astra Tools" (
 				local idx = LB_Anims_Idx + 1
 				idx = mod idx AnimData.count
 				if idx == 0 do idx = AnimData.count
-				
+
 				local data = AnimData[LB_Anims_Idx]
 				deleteItem AnimData LB_Anims_Idx
 				deleteItem LB_Anims.items LB_Anims_Idx
@@ -507,7 +507,7 @@ utility AstraTools "Astra Tools" (
 			-- val = ( substring val 1 5 ) as integer
 			-- if val == undefined do val = 0
 			-- SP_R_Offset.text = val as string
-			
+
 			if AnimData.count > 0 do (
 				AnimData[LB_Anims.selection].RightOffset = val
 			)
@@ -537,7 +537,7 @@ utility AstraTools "Astra Tools" (
 					deleteTime selectionSets["anm1"] anmRange.start cutRange.start #incLeft
 					animationRange = anmRange = Interval 0 ( cutRange.end - cutRange.start )
 				)
-				
+
 				hide selectionSets["anm1"]
 				local show_process = false
 				-- 开始循环处理
@@ -758,14 +758,18 @@ utility AstraTools "Astra Tools" (
 		button btn_impbod "Import BOD" width:142 enabled:false
 		button btn_expbod "Export BOD" width:142 enabled:HAS_DOUBLE
 		button btn_expbod_as "Export BOD As..." width:142 enabled:HAS_DOUBLE
-		
+
 		label blank1 ""
 		button btn_impbmv "Import BMV" width:142 enabled:false
-		button btn_expbmv "Export BMV" width:142 enabled:false
-		button btn_expbmv_as "Export BMV As..." width:142 enabled:false
+		button btn_expbmv "Export BMV" width:142 enabled:HAS_DOUBLE
+		button btn_expbmv_as "Export BMV As..." width:142 enabled:HAS_DOUBLE
+		label blank2 ""
+		button btn_impcam "Import CAM" width:142 enabled:false
+		button btn_expcam "Export CAM" width:142 enabled:false
+		button btn_expcam_as "Export CAM As..." width:142 enabled:false
 		label ccLab1 ""
-		label ccLab2 "" 
-		
+		label ccLab2 ""
+
 		on btn_expbod pressed do (
 			-- filein "AstraTools/bldexp_plus.ms"
 			execute "AstraToolsLib.ExportBOD.Start()"
@@ -780,6 +784,15 @@ utility AstraTools "Astra Tools" (
 		)
 		on btn_expbmv_as pressed do (
 			execute "AstraToolsLib.ExportBMV.Start custom:true"
+		)
+		on btn_impcam pressed do (
+			execute "AstraToolsLib.ImportCAM.Start()"
+		)
+		on btn_expcam pressed do (
+			execute "AstraToolsLib.ExportCAM.Start()"
+		)
+		on btn_expcam_as pressed do (
+			execute "AstraToolsLib.ExportCAM.Start custom:true"
 		)
 	)
 
@@ -805,13 +818,15 @@ utility AstraTools "Astra Tools" (
 		) else (
 			filein "AstraTools/AstraLib.ms"
 		)
+		-- for max2.5
+		AnimationSplice.init()
 	)
 	on main_close pressed do (
 		std_main_close()
 	)
 
 	-- on AstraTools open do (
-	--     
+	--
 	-- )
 	on AstraTools close do (
 		std_main_close()

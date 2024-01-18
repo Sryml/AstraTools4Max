@@ -14,4 +14,10 @@ rollout AstraToolsLib "" (
 	rollout ExportBMV "" (
 		include "AstraTools/export_bmv.ms"
 	)
+	rollout ImportCAM "" (
+		include "AstraTools/import_cam.ms"
+	)
+	rollout ExportCAM "" (
+		include "AstraTools/export_cam.ms"
+	)
 )
