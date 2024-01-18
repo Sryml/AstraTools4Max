@@ -200,9 +200,7 @@ utility AstraTools "Astra Tools" (
 		checkbox CB_FollowAngle "Follow Angle" align:#right checked:false
 		slider SL_AnmAngle "" orient:#horizontal type:#integer range:[-180, 180, 0] enabled: true
 
-		-- label LAB_FB_Offset "FB Offset: 0" align:#left across:2
 		dropdownlist DDL_FollowNode "Follow Node:" items:#( "None" )
-		-- checkbox CB_F_Offset "Auto Offset" checked:CB_F_OffsetDefault
 		label LAB_R_Offset "X Offset:" align:#left across:2
 		spinner SP_R_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
 		label LAB_F_Offset "Y Offset:" align:#left across:2
@@ -210,10 +208,6 @@ utility AstraTools "Astra Tools" (
 		label LAB_U_Offset "Z Offset:" align:#left across:2
 		spinner SP_U_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
 		
-
-		-- Angle Ang_AnmAngle "Angle 1" diameter:64 align:#left range:[-180, 180, 0] startdegrees:0 color:( color 0 120 215 )
-		-- slider SL_FB_Offset "" orient:#horizontal type:#integer range:[-200, 200, 0] enabled:( not CB_F_OffsetDefault ) tooltip:"Front and Back Offset"
-		-- )
 		-- label blank ""
 		button BTN_Start "START" width:55 -- height:20
 
@@ -277,17 +271,14 @@ utility AstraTools "Astra Tools" (
 			-- CB_F_Offset.checked = data.autoOffset
 			DDL_FollowNode.items = data.Nodes
 			DDL_FollowNode.selection = data.followNode
-			local state = true
-			if data.followNode != 1 do state = false
-			SP_R_Offset.enabled = state
-			SP_F_Offset.enabled = state
-			SP_U_Offset.enabled = state
+			-- local state = true
+			-- if data.followNode != 1 do state = false
+			-- SP_R_Offset.enabled = state
+			-- SP_F_Offset.enabled = state
+			-- SP_U_Offset.enabled = state
 			SP_F_Offset.value = data.FrontOffset
 			SP_U_Offset.value = data.UpOffset
 			SP_R_Offset.value = data.RightOffset
-			-- SL_FB_Offset.enabled = not data.autoOffset
-			-- SL_FB_Offset.value = data.FrontOffset
-			-- LAB_FB_Offset.text = "FB Offset: " + data.FrontOffset as string
 		)
 
 		fn init = (
@@ -295,11 +286,8 @@ utility AstraTools "Astra Tools" (
 				nAnms = AnimData.count
 				if nAnms == 0 or ( nAnms == 1 and LB_Anims.items[1] != maxFileName ) do (
 					LB_Anims.items = #( maxFileName )
-					-- AnimData = #( #( maxFilePath + maxFileName, animationRange, animationRange ) )
 					AnimData = #( AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange Nodes:( getFollowNodes()) )
 					LB_Anims.selection = LB_Anims_Idx = 1
-					-- if from_select do loadMaxFile AnimData[1].path
-					-- LB_Anims_Selected AnimData[1] init:true
 					updateUI LB_Anims.selection
 				)
 			)
@@ -323,13 +311,6 @@ utility AstraTools "Astra Tools" (
 			if LB_Anims_Idx != i do sliderTime = cutRange.start
 
 			LB_Anims_Idx = i
-
-			-- SL_AnmRangeStart.range = [start_, end_ - 1, 0]
-			-- SL_AnmRangeStart.value = start
-			-- SL_AnmRangeEnd.range = [start_ + 1, end_, 0]
-			-- SL_AnmRangeEnd.value = end
-			-- LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
-			-- LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
 		)
 
 		on BTN_Open pressed do (
@@ -498,20 +479,12 @@ utility AstraTools "Astra Tools" (
 			)
 		)
 
-		-- on CB_F_Offset changed state do (
-		-- 	SP_R_Offset.enabled = not state
-		-- 	SP_F_Offset.enabled = not state
-		-- 	SP_U_Offset.enabled = not state
-		-- 	if AnimData.count > 0 do (
-		-- 		AnimData[LB_Anims.selection].autoOffset = state
-		-- 	)
-		-- )
 		on DDL_FollowNode selected i do (
-			local state = true
-			if i != 1 do state = false
-			SP_R_Offset.enabled = state
-			SP_F_Offset.enabled = state
-			SP_U_Offset.enabled = state
+			-- local state = true
+			-- if i != 1 do state = false
+			-- SP_R_Offset.enabled = state
+			-- SP_F_Offset.enabled = state
+			-- SP_U_Offset.enabled = state
 			if AnimData.count > 0 do (
 				AnimData[LB_Anims.selection].followNode = i
 			)
@@ -539,13 +512,6 @@ utility AstraTools "Astra Tools" (
 				AnimData[LB_Anims.selection].RightOffset = val
 			)
 		)
-
-		-- on SL_FB_Offset changed val do (
-		-- 	LAB_FB_Offset.text = "FB Offset: " + val as string
-		-- 	if AnimData.count > 0 do (
-		-- 		AnimData[LB_Anims.selection].FrontOffset = val
-		-- 	)
-		-- )
 
 		on BTN_Start pressed do (
 			local nAnims = AnimData.count
@@ -628,17 +594,6 @@ utility AstraTools "Astra Tools" (
 						if data.followNode != 1 do (
 							local idx = findItem anmName1 data.Nodes[data.followNode]
 							followNode_pos = AnmSet1[idx].pos
-							-- local offset = in coordsys AnmSet1[1] AnmSet1[idx].pos.z
-							-- if offset > FrontOffset do FrontOffset = offset
-							-- if FrontOffset != 0 do (
-							-- 	local box1 = Box()
-							-- 	hide box1
-							-- 	in coordsys AnmSet1[1] box1.pos = [0, 0, FrontOffset]
-							-- 	AutoOffset = box1.pos - AnmSet1[1].pos
-							-- 	AutoOffset.z = 0
-							-- 	delete box1
-							-- )
-							
 						)
 					)
 					local vector2 = [0, -1, 0]
@@ -667,13 +622,11 @@ utility AstraTools "Astra Tools" (
 							Rotate AnmSet2[1] rotate_arr[1] rotate_arr[2]
 						)
 						AnmSet2[1].pos = [center_pos1.x, center_pos1.y, AnmSet2[1].pos.z]
-						if data.followNode != 1 then (
+						if data.followNode != 1 do (
 							local idx = findItem anmName2 data.Nodes[data.followNode]
 							move AnmSet2[1] ( followNode_pos - AnmSet2[idx].pos )
-						) else (
-							move AnmSet2[1] [data.RightOffset * 10.0, data.FrontOffset * 10.0, data.UpOffset * 10.0]
 						)
-						-- in coordsys local AnmSet2[1].pos = [- data.RightOffset * 10.0, data.UpOffset * 10.0, FrontOffset]
+						move AnmSet2[1] [data.RightOffset * 10.0, data.FrontOffset * 10.0, data.UpOffset * 10.0]
 						center_pos2 = AnmSet2[1].pos
 					)
 					--
