@@ -242,7 +242,12 @@ utility AstraTools "Astra Tools" (
 		)
 
 		fn getFollowNodes = (
-			local nodes = for i in $* where ClassOf i != Dummy collect i.Name
+			-- 在max2.5中没有达到预期结果 会有多余的 undefined 项
+			-- local nodes = for i in $* where ClassOf i != Dummy collect i.Name
+			local nodes = #( )
+			for i in $* do (
+				if ClassOf i != Dummy do append nodes i.Name
+			)
 			qsort nodes compareFN
 			insertItem "None" nodes 1
 			return nodes
@@ -531,6 +536,7 @@ utility AstraTools "Astra Tools" (
 				local anmRange, cutRange
 				anmRange = animationRange
 				cutRange = data.cutRange
+				if cutRange.end > anmRange.end do cutRange.end = anmRange.end
 
 				if ( anmRange.start != cutRange.start ) or ( anmRange.end != cutRange.end ) do (
 					deleteTime selectionSets["anm1"] cutRange.end anmRange.end #incRight
