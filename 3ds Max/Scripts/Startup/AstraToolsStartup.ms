@@ -47,7 +47,7 @@ utility AstraTools "Astra Tools" (
 	--
 
 	-- About
-	rollout AboutScript "About AstraTools v0.9.0" (
+	rollout AboutScript "About AstraTools v1.0.0 dev" (
 		Bitmap logo Filename:"AstraTools/header.bmp" applyUIScaling:false
 		Label ccLab1 "(C) 01 2024 Sryml"
 		Label ccLab2 "GNU General Public License v3.0"
@@ -770,9 +770,9 @@ utility AstraTools "Astra Tools" (
 		button btn_expbmv "Export BMV" width:142 enabled:HAS_DOUBLE
 		button btn_expbmv_as "Export BMV As..." width:142 enabled:HAS_DOUBLE
 		label blank2 ""
-		button btn_impcam "Import CAM" width:142 enabled:false
-		button btn_expcam "Export CAM" width:142 enabled:false
-		button btn_expcam_as "Export CAM As..." width:142 enabled:false
+		button btn_impcam "Import CAM" width:142 enabled:HAS_DOUBLE
+		button btn_expcam "Export CAM" width:142 enabled:HAS_DOUBLE
+		button btn_expcam_as "Export CAM As..." width:142 enabled:HAS_DOUBLE
 		label ccLab1 ""
 		label ccLab2 ""
 
