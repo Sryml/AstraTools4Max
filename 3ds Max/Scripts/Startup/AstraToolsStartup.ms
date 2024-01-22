@@ -39,6 +39,25 @@ utility AstraTools "Astra Tools" (
 		max izoom out
 	)
 
+	fn insertItem2 item array_ idx = (
+		if insertItem != undefined then (
+			insertItem item array_ idx
+		) else (
+			if idx > array_.count do (
+				array_[idx] = item
+				return "OK"
+			)
+			local result = #( )
+			for i = 1 to array_.count do (
+				if i == idx then append result item
+				append result array_[i]
+			)
+			for i = 1 to result.count do (
+				array_[i] = result[i]
+			)
+		)
+	)
+
 	fn BldObj_filt obj = isKindOf obj Dummy and findString obj.name "Blade_Object_" == 1
 
 	local HAS_FOPEN = fopen != undefined
@@ -248,8 +267,22 @@ utility AstraTools "Astra Tools" (
 			for i in $* do (
 				if ClassOf i != Dummy do append nodes i.Name
 			)
-			qsort nodes compareFN
-			insertItem "None" nodes 1
+			if qsort != undefined then (
+				qsort nodes compareFN
+			) else (
+				-- for max2.5
+				local idx
+				for i in #( "L_Foot", "R_Foot", "Center" ) do (
+					idx = findItem nodes i
+					if idx != 0 do (
+						deleteItem nodes idx
+						nodes = #( i ) + nodes
+						-- insertItem i nodes 1
+					)
+				)
+			)
+			-- insertItem "None" nodes 1
+			nodes = #( "None" ) + nodes
 			return nodes
 		)
 
@@ -340,7 +373,7 @@ utility AstraTools "Astra Tools" (
 				if AnimData.count == 0 then (
 					init()
 				) else (
-					insertItem maxFileName LB_Anims.items ( LB_Anims_Idx + 1 )
+					insertItem2 maxFileName LB_Anims.items ( LB_Anims_Idx + 1 )
 					LB_Anims.items = LB_Anims.items
 					local data = AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange
 					if LB_Anims.selected == maxFileName then (
@@ -350,7 +383,7 @@ utility AstraTools "Astra Tools" (
 						data.Nodes = getFollowNodes()
 					)
 					LB_Anims_Idx = LB_Anims_Idx + 1
-					insertItem data AnimData LB_Anims_Idx
+					insertItem2 data AnimData LB_Anims_Idx
 					LB_Anims.selection = LB_Anims_Idx
 					LB_Anims_Selected LB_Anims.selection
 				)
@@ -366,8 +399,8 @@ utility AstraTools "Astra Tools" (
 				local data = AnimData[LB_Anims_Idx]
 				deleteItem AnimData LB_Anims_Idx
 				deleteItem LB_Anims.items LB_Anims_Idx
-				insertItem ( filenameFromPath data.path ) LB_Anims.items idx
-				insertItem data AnimData idx
+				insertItem2 ( filenameFromPath data.path ) LB_Anims.items idx
+				insertItem2 data AnimData idx
 				LB_Anims.items = LB_Anims.items
 				LB_Anims.selection = LB_Anims_Idx = idx
 			)
@@ -382,8 +415,8 @@ utility AstraTools "Astra Tools" (
 				local data = AnimData[LB_Anims_Idx]
 				deleteItem AnimData LB_Anims_Idx
 				deleteItem LB_Anims.items LB_Anims_Idx
-				insertItem ( filenameFromPath data.path ) LB_Anims.items idx
-				insertItem data AnimData idx
+				insertItem2 ( filenameFromPath data.path ) LB_Anims.items idx
+				insertItem2 data AnimData idx
 				LB_Anims.items = LB_Anims.items
 				LB_Anims.selection = LB_Anims_Idx = idx
 			)
