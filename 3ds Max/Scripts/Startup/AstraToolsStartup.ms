@@ -792,6 +792,148 @@ utility AstraTools "Astra Tools" (
 	)
 
 
+	rollout CameraTransform "Camera Transform" (
+		group "BOD Camera to MAX" (
+			label LAB_BOD_POS "Position:" align:#left
+			edittext ET_BOD_POS ""
+			label LAB_BOD_TPOS "TPos:" align:#left
+			edittext ET_BOD_TPOS ""
+			button BTN_OK "OK" width:60
+		)
+		group "MAX Camera to BOD" (
+			label LAB_TO_BOD_POS "Position:" align:#left
+			edittext ET_TO_BOD_POS "" readOnly:true
+			label LAB_TO_BOD_TPOS "TPos:" align:#left
+			edittext ET_TO_BOD_TPOS "" readOnly:true
+			button BTN_Get "Get" width:60
+		)
+
+		fn init = (
+			if not HAS_DOUBLE do (
+				LAB_TO_BOD_POS.text = "Position (ReadOnly):"
+				LAB_TO_BOD_TPOS.text = "TPos (ReadOnly):"
+			)
+		)
+
+		fn bod2max_pos val = (
+			if val.count == 0 do return undefined
+
+			if val[1] == "(" and val[val.count] == ")" then (
+				val = replace val 1 1 "["
+				val = replace val val.count 1 "]"
+			)
+			else if val[1] != "[" and val[val.count] != "]" then (
+				val = "[" + val + "]"
+			)
+			local pos
+			try (
+				execute val
+				pos = execute val
+				if ClassOf pos == Point3 then return [pos.x, pos.z, - pos.y]
+				else return undefined
+			) catch (
+				return undefined
+			)
+		)
+
+		fn max2bod_pos val = (
+			local result = ""
+			local start
+			local num = 3 -- 保留2位小数
+			for i in #( val.x, - val.z, val.y ) do (
+				i = i as string
+				start = findString i "."
+				if start != undefined do (
+					start += num
+					if start <= i.count do (
+						i = replace i start ( i.count - start + 1 ) ""
+					)
+				)
+				if result == "" then result = i
+				else result += ", " + i
+			)
+			return result
+		)
+
+		-- on ET_BOD_POS entered val do (
+		-- 	val = bod2max_pos val
+		-- 	if val == undefined do ET_BOD_POS.text = ""
+		-- )
+		-- on ET_BOD_TPOS entered val do (
+		-- 	val = bod2max_pos val
+		-- 	if val == undefined do ET_BOD_TPOS.text = ""
+		-- )
+
+		fn BTN_OK_pressed = (
+			local FreeCams = #( )
+			for i in selection do (
+				if ClassOf i == Freecamera do append FreeCams i
+			)
+			if FreeCams.count == 0 do (
+				messageBox "Please select one or more free cameras.\n\n" beep:false
+				return false
+			)
+
+			local pos = bod2max_pos ET_BOD_POS.text
+			local tpos = bod2max_pos ET_BOD_TPOS.text
+			if pos == undefined and ET_BOD_POS.text != "" then LAB_BOD_POS.text = "Position (Invalid Value):"
+			else LAB_BOD_POS.text = "Position:"
+			if tpos == undefined and ET_BOD_TPOS.text != "" then LAB_BOD_TPOS.text = "TPos (Invalid Value):"
+			else LAB_BOD_TPOS.text = "TPos:"
+
+			if pos == undefined and tpos == undefined do return false
+
+			local cam_pos = pos
+			local vector1, vector2
+			local ang, axis
+			if pos != undefined and tpos != undefined do (
+				vector1 = [0, 0, -1]
+				vector2 = normalize ( tpos - cam_pos )
+				axis = normalize ( cross vector1 vector2 )
+				ang = acos ( dot vector1 vector2 )
+			)
+			for i in FreeCams do (
+				if pos == undefined do cam_pos = i.pos
+
+				if pos == undefined and tpos != undefined do (
+					vector1 = [0, 0, -1]
+					vector2 = normalize ( tpos - cam_pos )
+					axis = normalize ( cross vector1 vector2 )
+					ang = acos ( dot vector1 vector2 )
+				)
+				if tpos != undefined do i.rotation = quat ang axis
+				i.pos = cam_pos
+			)
+			max zoomext sel all
+			max izoom out
+		)
+
+		fn BTN_Get_pressed = (
+			local cam = $
+			if ClassOf cam != Freecamera do (
+				messageBox "Please select a free camera.\n\n" beep:false
+				return false
+			)
+			local box1 = Box()
+			hide box1
+			in coordsys cam box1.pos = [0, 0, -150]
+			local tpos = box1.pos
+			delete box1
+
+			ET_TO_BOD_POS.text = max2bod_pos cam.pos
+			ET_TO_BOD_TPOS.text = max2bod_pos tpos
+		)
+
+		on BTN_OK pressed do (
+			BTN_OK_pressed()
+		)
+
+		on BTN_Get pressed do (
+			BTN_Get_pressed()
+		)
+	)
+
+
 	-- 导入 & 导出
 	rollout IMPEXP "Import & Export" (
 		button btn_impbod "Import BOD" width:142 enabled:false
@@ -849,6 +991,8 @@ utility AstraTools "Astra Tools" (
 		addrollout TransformScale main_win rolledup:true
 		addrollout AnimationSplice main_win rolledup:true
 		addrollout AnimationReverse main_win rolledup:true
+		addrollout CameraTransform main_win rolledup:true
+		CameraTransform.init()
 
 		addrollout IMPEXP main_win rolledup:( not HAS_DOUBLE )
 		if not HAS_DOUBLE then (
