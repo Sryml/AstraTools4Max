@@ -1,5 +1,8 @@
 fn Start custom:false = (
-	local FreeCams = for i in objects where ClassOf i == Freecamera and i.Name != "" collect i
+	local FreeCams = for i in selection where ClassOf i == Freecamera and i.Name != "" collect i
+	if FreeCams.count == 0 do (
+		FreeCams = for i in objects where ClassOf i == Freecamera and i.Name != "" collect i
+	)
 	if FreeCams.count == 0 do return false
 
 	local SAVE_FOLDER
