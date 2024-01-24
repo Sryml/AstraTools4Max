@@ -62,11 +62,12 @@ utility AstraTools "Astra Tools" (
 
 	local HAS_FOPEN = fopen != undefined
 	local HAS_DOUBLE = WriteFloatAsDouble != undefined
+	local HAS_INISetting = setINISetting != undefined and getINISetting != undefined
 
 	--
 
 	-- About
-	rollout AboutScript "About AstraTools v1.0.0 dev" (
+	rollout AboutScript "About AstraTools v1.1.0 dev" (
 		Bitmap logo Filename:"AstraTools/header.bmp" applyUIScaling:false
 		Label ccLab1 "(C) 01 2024 Sryml"
 		Label ccLab2 "GNU General Public License v3.0"
@@ -198,6 +199,10 @@ utility AstraTools "Astra Tools" (
 	rollout AnimationSplice "Animation Cut/Splice" (
 		local TransitionDefault = 8
 		-- button BTN_Open "Add AnmMax File" width:145 tooltip:"Double click in the list to delete the item."
+		group "Scheme" (
+			button BTN_Save "Save Scheme" across:2 width:85 align:#center enabled:HAS_INISetting
+			button BTN_Load "Load Scheme" width:85 align:#center enabled:HAS_INISetting
+		)
 		button BTN_Open "Open" across:2 width:85 align:#center
 		button BTN_AddCurr "Add Current" width:85 align:#center
 		listbox LB_Anims "" items:#( ) selection:0 height:4 -- width:144 align:#left across:4
@@ -227,7 +232,7 @@ utility AstraTools "Astra Tools" (
 		label LAB_U_Offset "Z Offset:" align:#left across:2
 		spinner SP_U_Offset "" range:[-10000, 10000, 0] type:#integer scale:1 fieldwidth:75 align:#left
 
-		-- label blank ""
+		-- label blank2 ""
 		button BTN_Start "START" width:55 -- height:20
 
 		struct AnimStruct (
@@ -341,7 +346,7 @@ utility AstraTools "Astra Tools" (
 				)
 				loadMaxFileWithZoom data.path
 			)
-			anmRange = data.anmRange
+			-- anmRange = data.anmRange
 			cutRange = data.cutRange
 
 			animationRange = cutRange
@@ -349,6 +354,129 @@ utility AstraTools "Astra Tools" (
 			if LB_Anims_Idx != i do sliderTime = cutRange.start
 
 			LB_Anims_Idx = i
+		)
+
+		on BTN_Save pressed do (
+			if AnimData.count == 0 do return false
+
+			local filepath = getSaveFileName types:"AnimSplice Scheme (*.ini)|*.ini|All files (*.*)|*.*|"
+			if filepath != undefined do (
+				local init = true
+				local ini_section
+				local data
+				local PropNames = #( "path", "cutRange", "anmRange", "Trans", "Angle", "followAngle", "Nodes", "followNode", "FrontOffset", "UpOffset", "RightOffset" )
+				for i = 1 to AnimData.count do (
+					data = AnimData[i]
+					if init do (
+						if doesFileExist filepath do (
+							local f = fopen filepath "wt"
+							WriteString f "\n"
+							fclose f
+						)
+						init = false
+					)
+					ini_section = i as string + ". " + getFilenameFile data.path
+					for p in PropNames do (
+						if p == "Nodes" then (
+							local str = ""
+							for i in data.Nodes do (
+								if str == "" then str = i
+								else str += ", " + i
+							)
+							setINISetting filepath ini_section p str
+						) else (
+							setINISetting filepath ini_section p ( getProperty data p as string )
+						)
+					)
+					-- setINISetting f ini_section "path" data.path
+					-- setINISetting f ini_section "cutRange" ( data.cutRange as string )
+					-- setINISetting f ini_section "anmRange" ( data.anmRange as string )
+					-- setINISetting f ini_section "Trans" ( data.Trans as string )
+					-- setINISetting f ini_section "Angle" ( data.Angle as string )
+					-- setINISetting f ini_section "followAngle" ( data.followAngle as string )
+					-- setINISetting f ini_section "followNode" ( data.followNode as string )
+					-- setINISetting f ini_section "FrontOffset" ( data.FrontOffset as string )
+					-- setINISetting f ini_section "UpOffset" ( data.UpOffset as string )
+					-- setINISetting f ini_section "RightOffset" ( data.RightOffset as string )
+				)
+			)
+		)
+		on BTN_Load pressed do (
+			local filepath = getOpenFileName types:"AnimSplice Scheme (*.ini)|*.ini|All files (*.*)|*.*|"
+			if filepath != undefined do (
+				local prev_AnimData = AnimData
+				local prev_LB_Anims = LB_Anims.items
+				local data
+				local isSuccessful = false
+				-- local isCleared = false
+				local PropNames = #( "path", "cutRange", "anmRange", "Trans", "Angle", "followAngle", "Nodes", "followNode", "FrontOffset", "UpOffset", "RightOffset" )
+
+				local sections = getINISetting filepath
+				local ini_value
+				local skip = false
+				for ini_section in sections do (
+					data = AnimStruct()
+					for p in PropNames do (
+						ini_value = getINISetting filepath ini_section p
+						if ini_value == "" do (
+							skip = true
+							exit
+						)
+						if p == "path" then (
+							setProperty data p ini_value
+						) else if p == "Nodes" then (
+							setProperty data p ( filterString ini_value ", " )
+						) else (
+							setProperty data p ( execute ini_value )
+						)
+					)
+					if skip do (
+						skip = false
+						continue
+					)
+
+					-- if not isCleared do (
+					-- 	AnimData = #( )
+					-- 	isCleared = true
+					-- )
+					if not isSuccessful do (
+						AnimData = #( )
+						isSuccessful = true
+					)
+					append AnimData data
+				)
+
+				if isSuccessful do (
+					LB_Anims.items = for data in AnimData collect filenameFromPath data.path
+					local fpath
+					local filename
+					local count = 0
+					for data in AnimData do (
+						if not doesFileExist data.path do (
+							fpath = undefined
+							filename = filenameFromPath data.path
+							do (
+								fpath = getOpenFileName caption:"Update File Path" filename:filename types:"Blade Anm (*.max)|*.max|All files (*.*)|*.*|"
+								if fpath == undefined do count += 1
+								if count == 2 do (
+									AnimData = prev_AnimData
+									LB_Anims.items = prev_LB_Anims
+									LB_Anims.selection = LB_Anims_Idx
+									messageBox "Failed to load scheme.\n\n" beep:false
+									return false
+								)
+							) while fpath == undefined or filenameFromPath fpath != filename
+							data.path = fpath
+						)
+					)
+					-- if doesFileExist AnimData[1].path do (
+					-- 	LB_Anims.selection = 1
+					LB_Anims.selection = LB_Anims_Idx = 1
+					loadMaxFileWithZoom AnimData[1].path
+					LB_Anims_Selected LB_Anims.selection
+					-- )
+				)
+			)
 		)
 
 		on BTN_Open pressed do (
@@ -376,7 +504,7 @@ utility AstraTools "Astra Tools" (
 					insertItem2 maxFileName LB_Anims.items ( LB_Anims_Idx + 1 )
 					LB_Anims.items = LB_Anims.items
 					local data = AnimStruct ( maxFilePath + maxFileName ) animationRange animationRange
-					if LB_Anims.selected == maxFileName then (
+					if LB_Anims.selection != 0 and LB_Anims.selected == maxFileName then (
 						data.cutRange = data.anmRange = AnimData[LB_Anims_Idx].anmRange
 						data.Nodes = AnimData[LB_Anims_Idx].Nodes
 					) else (
@@ -391,7 +519,7 @@ utility AstraTools "Astra Tools" (
 		)
 
 		on BTN_MoveUp pressed do (
-			if AnimData.count > 1 do (
+			if LB_Anims_Idx != 0 and AnimData.count > 1 do (
 				local idx = LB_Anims_Idx - 1
 				idx = mod idx AnimData.count
 				if idx == 0 do idx = AnimData.count
@@ -407,7 +535,7 @@ utility AstraTools "Astra Tools" (
 		)
 
 		on BTN_MoveDn pressed do (
-			if AnimData.count > 1 do (
+			if LB_Anims_Idx != 0 and AnimData.count > 1 do (
 				local idx = LB_Anims_Idx + 1
 				idx = mod idx AnimData.count
 				if idx == 0 do idx = AnimData.count
@@ -427,7 +555,7 @@ utility AstraTools "Astra Tools" (
 		)
 		-- on LB_Anims doubleClicked i do (
 		on BTN_Del pressed do (
-			if AnimData.count == 0 do return false
+			if AnimData.count == 0 or LB_Anims_Idx == 0 do return false
 
 			local i = LB_Anims.selection
 			deleteItem LB_Anims.items i
@@ -450,33 +578,36 @@ utility AstraTools "Astra Tools" (
 
 		on BTN_DelAll pressed do (
 			if AnimData.count > 0 do (
-				local data = AnimData[LB_Anims.selection]
+				local data
+				if LB_Anims_Idx != 0 do data = AnimData[LB_Anims.selection]
 				LB_Anims.items = #( )
 				AnimData = #( )
 				LB_Anims_Idx = 0
-				if maxFileName == ( filenameFromPath data.path ) do animationRange = data.anmRange
+				if LB_Anims_Idx != 0 and maxFileName == ( filenameFromPath data.path ) do animationRange = data.anmRange
 			)
 		)
 
 		on SL_AnmRangeStart changed val do (
-			LAB_AnmRangeStart.text = "start time: " + val as string
 			if val >= SL_AnmRangeEnd.value do (
-				SL_AnmRangeEnd.value = val + 1
-				LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
+				SL_AnmRangeStart.value = SL_AnmRangeEnd.value - 1
+				-- SL_AnmRangeEnd.value = val + 1
+				-- LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
 			)
-			if AnimData.count > 0 and LB_Anims.selected == maxFileName do (
+			LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
+			if AnimData.count > 0 and LB_Anims_Idx != 0 and LB_Anims.selected == maxFileName do (
 				AnimData[LB_Anims.selection].cutRange = Interval SL_AnmRangeStart.value SL_AnmRangeEnd.value
 				animationRange = AnimData[LB_Anims.selection].cutRange
 				sliderTime = val
 			)
 		)
 		on SL_AnmRangeEnd changed val do (
-			LAB_AnmRangeEnd.text = "end time: " + val as string
 			if val <= SL_AnmRangeStart.value do (
-				SL_AnmRangeStart.value = val - 1
-				LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
+				SL_AnmRangeEnd.value = SL_AnmRangeStart.value + 1
+				-- SL_AnmRangeStart.value = val - 1
+				-- LAB_AnmRangeStart.text = "start time: " + SL_AnmRangeStart.value as string
 			)
-			if AnimData.count > 0 and LB_Anims.selected == maxFileName do (
+			LAB_AnmRangeEnd.text = "end time: " + SL_AnmRangeEnd.value as string
+			if AnimData.count > 0 and LB_Anims_Idx != 0 and LB_Anims.selected == maxFileName do (
 				AnimData[LB_Anims.selection].cutRange = Interval SL_AnmRangeStart.value SL_AnmRangeEnd.value
 				animationRange = AnimData[LB_Anims.selection].cutRange
 				sliderTime = val
@@ -484,35 +615,35 @@ utility AstraTools "Astra Tools" (
 		)
 		on SL_Trans changed val do (
 			LAB_Trans.text = "Transition: " + val as string
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].Trans = val
 			)
 		)
 		on SL_Trans rightClick do (
 			LAB_Trans.text = "Transition: " + TransitionDefault as string
 			SL_Trans.value = TransitionDefault
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].Trans = TransitionDefault
 			)
 		)
 
 		on CB_FollowAngle changed state do (
 			SL_AnmAngle.enabled = not state
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].followAngle = state
 			)
 		)
 
 		on SL_AnmAngle changed val do (
 			LAB_AnmAngle.text = "Angle: " + val as string
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].Angle = val
 			)
 		)
 		on SL_AnmAngle rightClick do (
 			LAB_AnmAngle.text = "Angle: 0"
 			SL_AnmAngle.value = 0
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].Angle = 0
 			)
 		)
@@ -523,19 +654,19 @@ utility AstraTools "Astra Tools" (
 			-- SP_R_Offset.enabled = state
 			-- SP_F_Offset.enabled = state
 			-- SP_U_Offset.enabled = state
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].followNode = i
 			)
 		)
 
 		on SP_F_Offset changed val do (
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].FrontOffset = val
 			)
 		)
 
 		on SP_U_Offset changed val do (
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].UpOffset = val
 			)
 		)
@@ -546,7 +677,7 @@ utility AstraTools "Astra Tools" (
 			-- if val == undefined do val = 0
 			-- SP_R_Offset.text = val as string
 
-			if AnimData.count > 0 do (
+			if AnimData.count > 0 and LB_Anims_Idx != 0 do (
 				AnimData[LB_Anims.selection].RightOffset = val
 			)
 		)
