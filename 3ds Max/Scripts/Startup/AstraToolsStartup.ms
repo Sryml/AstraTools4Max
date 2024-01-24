@@ -251,6 +251,7 @@ utility AstraTools "Astra Tools" (
 
 		local AnimData = #( )
 		local LB_Anims_Idx = 0
+		local isMerge = false
 
 		fn compareFN v1 v2 = (
 			if findString v1 "Center" != undefined then v1 = -1
@@ -339,6 +340,10 @@ utility AstraTools "Astra Tools" (
 		fn LB_Anims_Selected i = (
 			local data = AnimData[i]
 			local anmRange, cutRange
+			if isMerge do (
+				loadMaxFileWithZoom data.path
+				isMerge = false
+			)
 			if filenameFromPath data.path != maxFileName do (
 				if AnimData.count == 1 do (
 					init()
@@ -858,8 +863,8 @@ utility AstraTools "Astra Tools" (
 				-- 清理工作
 				unhide selectionSets["anm1"]
 				deleteItem selectionSets "anm1"
-				-- init()
-				-- LB_Anims.items = AnimData = #( )
+				isMerge = true
+
 				max vpt left
 				max zoomext sel all
 				max izoom out
@@ -1016,23 +1021,41 @@ utility AstraTools "Astra Tools" (
 
 			local cam_pos = pos
 			local vector1, vector2
-			local ang, axis
+			local rot, ang, axis
 			if pos != undefined and tpos != undefined do (
-				vector1 = [0, 0, -1]
+				-- 先计算左右旋转
+				vector1 = [0, 1, 0]
+				vector2 = normalize ( tpos - cam_pos )
+				vector2.z = 0
+				axis = normalize ( cross vector1 vector2 )
+				ang = acos ( dot vector1 vector2 )
+				rot = quat ang axis * quat 90 [1, 0, 0]
+				-- 再计算上下旋转
+				vector1 = ( rot * ( quat 0 0 -1 0 ) * ( conjugate rot ) ).axis
 				vector2 = normalize ( tpos - cam_pos )
 				axis = normalize ( cross vector1 vector2 )
 				ang = acos ( dot vector1 vector2 )
+				rot = quat ang axis * rot
 			)
 			for i in FreeCams do (
 				if pos == undefined do cam_pos = i.pos
 
 				if pos == undefined and tpos != undefined do (
-					vector1 = [0, 0, -1]
+					-- 先计算左右旋转
+					vector1 = [0, 1, 0]
+					vector2 = normalize ( tpos - cam_pos )
+					vector2.z = 0
+					axis = normalize ( cross vector1 vector2 )
+					ang = acos ( dot vector1 vector2 )
+					rot = quat ang axis * quat 90 [1, 0, 0]
+					-- 再计算上下旋转
+					vector1 = ( rot * ( quat 0 0 -1 0 ) * ( conjugate rot ) ).axis
 					vector2 = normalize ( tpos - cam_pos )
 					axis = normalize ( cross vector1 vector2 )
 					ang = acos ( dot vector1 vector2 )
+					rot = quat ang axis * rot
 				)
-				if tpos != undefined do i.rotation = quat ang axis
+				if tpos != undefined do i.rotation = rot
 				i.pos = cam_pos
 			)
 			max zoomext sel all
