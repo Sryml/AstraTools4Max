@@ -12,7 +12,7 @@ fn Start custom:false = (
 		SAVE_FOLDER = getSavePath()
 	) else (
 		SAVE_FOLDER = maxFilePath
-		if SAVE_FOLDER == "" do SAVE_FOLDER = getSavePath() 
+		if SAVE_FOLDER == "" do SAVE_FOLDER = getSavePath()
 	)
 	if SAVE_FOLDER == undefined or SAVE_FOLDER == "" do (
 		return false
@@ -46,7 +46,7 @@ fn Start custom:false = (
 			)
 		)
 	)
-	
+
 	for i = 1 to FreeCams.count do (
 		local cam = FreeCams[i]
 		local f = fopen SAVE_FILENAMES[i] "wb"
@@ -60,14 +60,15 @@ fn Start custom:false = (
 		WriteByte f 64
 		for i = AnmRange.start to AnmRange.end do (
 			at time i (
-				local rot = cam.rotation
+				local axis = normalize cam.rotation.axis
+				local ang = cam.rotation.angle
 				local pos = cam.pos
 				local fov = cam.fov
 			)
-			WriteFloat f ( - rot.axis.x )
-			WriteFloat f rot.axis.z
-			WriteFloat f ( - rot.axis.y )
-			WriteFloat f ( DegToRad rot.angle )
+			WriteFloat f ( - axis.x )
+			WriteFloat f axis.z
+			WriteFloat f ( - axis.y )
+			WriteFloat f ( DegToRad ang )
 
 			WriteFloat f pos.x
 			WriteFloat f ( - pos.z )
