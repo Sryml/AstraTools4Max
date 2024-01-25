@@ -67,7 +67,7 @@ utility AstraTools "Astra Tools" (
 	--
 
 	-- About
-	rollout AboutScript "About AstraTools v1.1.0 dev" (
+	rollout AboutScript "About AstraTools v1.1" (
 		Bitmap logo Filename:"AstraTools/header.bmp" applyUIScaling:false
 		Label ccLab1 "(C) 01 2024 Sryml"
 		Label ccLab2 "GNU General Public License v3.0"
